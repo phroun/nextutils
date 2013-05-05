@@ -1,4 +1,29 @@
 <?php
+// ###########################################################################
+// utils.php:  Utilities for PHP Web Applications Development
+// ===========================================================================
+// Version 2013-05-05
+//
+// Contributors:
+//
+// * Jeff Day
+//
+// Quick Usage Guide:
+//
+// logline($s) - Log a line to $MESSAGELOGFN with timestamp.
+// setTimezoneByOffset($offset) - Set PHP default timezone.
+// hexDigitToDec($d) - Convert single hex digit into decimal equivalent.
+// luminanceOfHex($hex) - Convert 3 or 6 digit hex code into luminance score.
+// selected($comp) - Output ' selected="selected"' if passed true.
+// checked($comp) - Output ' checked="checked"' if passed true.
+// dtLocal($dtval) - Convert YYYY-MM-DD HH:II:SS from UTC to local time.
+// dtUTC($dtval) - Convert YYYY-MM-DD HH:II:SS from local time to UTC.
+// formatDuration($duration) - Format duration given in seconds to be human
+//   readable, and if 48 hours or more, switches to "x days" format.
+// boolToInt($bool) - Returns -1 for true or 0 for false.
+// intToBool($int) - Forces to numeric and returns true for nonzero values.
+//
+// ###########################################################################
 
 if (''.@$_SESSION['timezone'] > '') {
   setTimezoneByOffset($_SESSION['timezone']);
@@ -9,6 +34,9 @@ if (''.@$_SESSION['timezone'] > '') {
 function logline($s) {
   global $INSTANCE; // for concurrency
   global $MESSAGELOGFN;
+  if ($MESSAGELOGFN == '') { // try messages if no other log file specified:
+    $MESSAGELOGFN = '/var/log/messages';
+  }
   $sri = '';
   if (''.@$INSTANCE > '') {
     $sri = $INSTANCE . '@';
@@ -56,7 +84,18 @@ function hexDigitToDec($d) {
 }
 
 function luminanceOfHex($hex) {
-  if (strlen($hex) == 3) {
+
+  if (strlen($hex) == 6) { // only read major digits if 6-digit value
+
+    $r = hexDigitToDec(substr($hex, 0, 1));
+    $g = hexDigitToDec(substr($hex, 2, 1));
+    $b = hexDigitToDec(substr($hex, 4, 1));
+    if (($r < 0) || ($g < 0) || ($b < 0)) {
+      $r = 15; $g = 15; $b = 15;
+    }
+
+  } elseif (strlen($hex) == 3) {
+
     $r = hexDigitToDec(substr($hex, 0, 1));
     $g = hexDigitToDec(substr($hex, 1, 1));
     $b = hexDigitToDec(substr($hex, 2, 1));
