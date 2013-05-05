@@ -141,10 +141,14 @@ function formatDuration($duration) {
   return $so;
 }
 
-function ibool($bool) {
+function boolToInt($bool) {
   if ($bool) {
     return (-1);
   } else {
     rerurn (0);
   }
+}
+
+function intToBool($int) {
+  return (0+@$int != 0);
 }
