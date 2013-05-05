@@ -1,4 +1,35 @@
 <?php
+// ###########################################################################
+// dbutils.php:  Utilities for PHP Database Development with MySQL
+// ===========================================================================
+// Version 2013-05-05
+//
+// To use the update or insertorupdate functions, tables must have an integer
+// autonumber column called "id" as the primary key.
+//
+// Contributors:
+//
+// * Jeff Day
+//
+// Quick Usage Guide:
+//
+// mes($s) - Sanitize a string value using mysql_real_escape_string.
+// sq($q, ...) - Turn string q into result set and return first result, or if
+//   q is already a result set, return next result. If last result, the result
+//   set will be freed and disposed of automatically.
+// insert($table, $values) - returns id of the inserted record
+// update($table, $keyvalues, $values) - returns true if successful
+// updateorinsert($table, $keyvalues, $values, $insertonlyvalues) - returns
+//   id of the updated or inserted record.
+// updateorinsert_inserted() - Returns true if prior updateorinsert invocation
+//   resulted in the insertion of a new record.
+//
+// Functions mostly for internal use:
+//
+// q(...) - Raw version of sq()
+// arraytosafe() - Used to stack up parameters into a string.
+//
+// ###########################################################################
 
 function mes($s) {
   return mysql_real_escape_string($s);
@@ -88,7 +119,7 @@ function updateorinsert_inserted() {
   return $updateorinsert_inserted;
 }
 
-function updateorinsert($table, $keyvalues, $values = array(), $insertonly = false, $showerrors = true) {
+function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues = false, $showerrors = true) {
   global $updateorinsert_inserted;
   $updateorinsert_inserted = false;
   mysql_query('START TRANSACTION');
@@ -105,8 +136,8 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonly = fal
       echo mysql_error();
     }
   } else {
-    if ($insertonly !== false) {
-      $allvalues = array_merge($allvalues, $insertonly);
+    if ($insertonlyvalues !== false) {
+      $allvalues = array_merge($allvalues, $insertonlyvalues);
     }
     $sql = 'INSERT INTO `' . $table . '` (';
     $first = true;
@@ -146,10 +177,15 @@ function update($table, $keyvalues, $values = array(), $showerrors = true) {
   $i = 0+@$f['id'];
   $sql .= ' WHERE ' . arraytosafe($keyvalues, true);
   mysql_query($sql);
-  if ($showerrors) {
-    echo mysql_error();
+  $e = mysql_error();
+  if ($e > '') {
+    if ($showerrors) {
+      echo $e;
+    }
+    return false;
+  } else {
+    return true;
   }
-  return true;
 }
 
 function insert($table, $values, $showerrors = true) {
