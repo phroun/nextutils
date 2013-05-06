@@ -25,6 +25,8 @@
 //
 // ###########################################################################
 
+namespace Utilities;
+
 if (''.@$_SESSION['timezone'] > '') {
   setTimezoneByOffset($_SESSION['timezone']);
 } else {
