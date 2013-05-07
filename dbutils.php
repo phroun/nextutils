@@ -31,8 +31,6 @@
 //
 // ###########################################################################
 
-namespace Utilities;
-
 function mes($s) {
   return mysql_real_escape_string($s);
 }
