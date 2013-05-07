@@ -25,12 +25,6 @@
 //
 // ###########################################################################
 
-if (''.@$_SESSION['timezone'] > '') {
-  setTimezoneByOffset($_SESSION['timezone']);
-} else {
-  date_default_timezone_set('UTC');
-} // this gets overridden by user, if specified
-
 function logline($s) {
   global $INSTANCE; // for concurrency
   global $MESSAGELOGFN;
@@ -53,17 +47,24 @@ function setTimezoneByOffset($offset) {
   $abbrarray = timezone_abbreviations_list();
   foreach ($abbrarray as $abbr) {
     foreach ($abbr as $city) {
-      if (''.@$city['timezone_id'] > '') {
-        date_default_timezone_set($city['timezone_id']);
-      }
-      $testLocaltime = localtime($testTimestamp,true);
-      $hour = $testLocaltime['tm_hour'];
-      $testOffset =  $hour - $testHour;
-      if ($testOffset == $offset) {
-        return true; // America/Santa_Isabel == Pacific
+      $val = false;
+      if (($city['timezone_id'] != 'Factory')
+      &&  (''.@$city['timezone_id'] > '')) {
+        if (isset($city['timezone_id'])) {
+          $val = date_default_timezone_set($city['timezone_id']);
+          if ($val) {
+            $testLocaltime = localtime($testTimestamp,true);
+            $hour = $testLocaltime['tm_hour'];
+            $testOffset =  $hour - $testHour;
+            if (($testOffset == $offset) || ($testOffset==$offset+24)) {
+              return true;
+            }
+          }
+        }
       }
     }
   }
+  date_default_timezone_set('UTC');
   return false;
 }
 
@@ -184,7 +185,7 @@ function boolToInt($bool) {
   if ($bool) {
     return (-1);
   } else {
-    rerurn (0);
+    return (0);
   }
 }
 
