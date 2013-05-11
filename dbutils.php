@@ -123,7 +123,11 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
   global $updateorinsert_inserted;
   $updateorinsert_inserted = false;
   mysql_query('START TRANSACTION');
-  $sql = 'SELECT * FROM `' . $table . '` WHERE ' . arraytosafe($keyvalues, true);
+  if (isset($keyvalues['id']) && (0+@$keyvalues['id'] == 0)) {
+    $sql = 'SELECT * FROM `' . $table . '` WHERE false'; // inserting, so we short circuit this
+  } else {
+    $sql = 'SELECT * FROM `' . $table . '` WHERE ' . arraytosafe($keyvalues, true);
+  }
   $allvalues = array_merge($keyvalues, $values);
   $q = mysql_query($sql);
   if ($f = mysql_fetch_assoc($q)) {
@@ -138,6 +142,11 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
   } else {
     if ($insertonlyvalues !== false) {
       $allvalues = array_merge($allvalues, $insertonlyvalues);
+    }
+    if (isset($allvalues['id'])) { // allow inserting to autogenerate the id field
+      if ($allvalues['id'] == 0) {
+        unset($allvalues['id']);
+      }
     }
     $sql = 'INSERT INTO `' . $table . '` (';
     $first = true;
