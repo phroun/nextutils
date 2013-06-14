@@ -64,7 +64,7 @@ function q(&$q, $showerrors = true, $getnumrows = false) {
 
 function qf(&$q) {
   if (is_array($q)) {
-    if ($q['result']) {
+    if (@$q['result']) {
       mysql_free_result($q['result']);
     }
     $q = null;

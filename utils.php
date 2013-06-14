@@ -18,8 +18,10 @@
 // checked($comp) - Output ' checked="checked"' if passed true.
 // dtLocal($dtval) - Convert YYYY-MM-DD HH:II:SS from UTC to local time.
 // dtUTC($dtval) - Convert YYYY-MM-DD HH:II:SS from local time to UTC.
-// formatDuration($duration) - Format duration given in seconds to be human
-//   readable, and if 48 hours or more, switches to "x days" format.
+// tzOffset() - Return current timezone offset in +00:00 format.
+// formatDuration($duration, $usedays) - Format duration given in seconds
+//   to be human readable, and if 48 hours or more, switches to "x days"
+//   format.
 // boolToInt($bool) - Returns -1 for true or 0 for false.
 // intToBool($int) - Forces to numeric and returns true for nonzero values.
 //
@@ -159,13 +161,28 @@ function dtUTC($dtval) {
   }
 }
 
-function formatDuration($duration) {
+function tzOffset() {
+  $tzoff = floor(date('Z')/60);
+  $sign = ($tzoff < 0);
+  if ($sign) { $tzoff *= -1; }
+  $tzhr = floor($tzoff / 60);
+  $tzmin = $tzoff - ($tzhr*60);
+  if ($sign) {
+    $tzs = '-';
+  } else {
+    $tzs = '+';
+  }
+  $tzs .= str_pad($tzhr,2,'0',STR_PAD_LEFT) . ':' . str_pad($tzmin,2,'0',STR_PAD_LEFT);
+  return $tzs;
+}
+
+function formatDuration($duration, $usedays = true) {
   $so = '';
   if ($duration >= 0) {
     $durationmins = floor($duration / 60);
     $durationsecs = $duration - ($durationmins * 60);
     $durationhours = floor($durationmins / 60);
-    if ($durationhours >= 48) {
+    if (($durationhours >= 48) && $usedays) {
       $durationdays = floor($durationhours / 24);
       $so .= $durationdays . ' days';
     } else {
@@ -191,4 +208,28 @@ function boolToInt($bool) {
 
 function intToBool($int) {
   return (0+@$int != 0);
+}
+
+function size_readable($size, $max = null, $system = 'si', $retstring = '%01.2f %s') {
+  // Pick units
+  $systems['si']['prefix'] = array('B', 'K', 'MB', 'GB', 'TB', 'PB');
+  $systems['si']['size']   = 1000;
+  $systems['bi']['prefix'] = array('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB');
+  $systems['bi']['size']   = 1024;
+  $sys = isset($systems[$system]) ? $systems[$system] : $systems['si'];
+
+  // Max unit to display
+  $depth = count($sys['prefix']) - 1;
+  if ($max && false !== $d = array_search($max, $sys['prefix'])) {
+    $depth = $d;
+  }
+
+  // Loop
+  $i = 0;
+  while ($size >= $sys['size'] && $i < $depth) {
+    $size /= $sys['size'];
+    $i++;
+  }
+
+  return sprintf($retstring, $size, $sys['prefix'][$i]);
 }
