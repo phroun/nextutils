@@ -90,26 +90,40 @@ function sq(&$q, $showerrors = true, $getnumrows = false, $keepq = false) {
   }
 }
 
-function arraytosafe($values, $useand = false) {
+function arraytosafe($values, $useand = false, $where = false) {
   $first = true;
   $sql = '';
   foreach ($values as $name => $val) {
-    if (!$first) {
-      if ($useand) {
-        $sql .= ' AND ';
-      } else {
-        $sql .= ', ';
+    $literal = (substr($name, 0, 1) == '&');
+
+    if ($where||!$literal) {
+      if (!$first) {
+        if ($useand) {
+          $sql .= ' AND ';
+        } else {
+          $sql .= ', ';
+        }
       }
     }
-    $sql .= ' `' . $name . '` = ';
-    if (gettype($val) == 'string') {
-      $sql .= '"' . mes($val) . '"';
-    } elseif (gettype($val) == 'array') {
-      $sql .= $val[0];
+
+    if ($literal) {
+      if ($where) {
+        $sql .= ' ' . substr($name, 1);
+      }
     } else {
-      $sql .= 0+@$val;
+      $sql .= ' `' . $name . '` = ';
+      if (gettype($val) == 'string') {
+        $sql .= '"' . mes($val) . '"';
+      } elseif (gettype($val) == 'array') {
+        $sql .= $val[0];
+      } else {
+        $sql .= 0+@$val;
+      }
     }
-    $first = false;
+
+    if ($where||!$literal) {
+      $first = false;
+    }
   }
   return $sql;
 }

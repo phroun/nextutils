@@ -161,7 +161,11 @@ function dtUTC($dtval) {
   }
 }
 
-function tzOffset() {
+function tzOffset($tz = '') {
+  if ($tz != '') {
+    $oldtz = date_default_timezone_get();
+    date_default_timezone_set($tz);
+  }
   $tzoff = floor(date('Z')/60);
   $sign = ($tzoff < 0);
   if ($sign) { $tzoff *= -1; }
@@ -173,6 +177,9 @@ function tzOffset() {
     $tzs = '+';
   }
   $tzs .= str_pad($tzhr,2,'0',STR_PAD_LEFT) . ':' . str_pad($tzmin,2,'0',STR_PAD_LEFT);
+  if ($tz != '') {
+    date_default_timezone_set($oldtz);
+  }
   return $tzs;
 }
 
