@@ -10,6 +10,7 @@
 //
 // Quick Usage Guide:
 //
+// hts($s) - alias for htmlspecialchars, use for output of data fields.
 // logline($s) - Log a line to $MESSAGELOGFN with timestamp.
 // setTimezoneByOffset($offset) - Set PHP default timezone.
 // hexDigitToDec($d) - Convert single hex digit into decimal equivalent.
@@ -239,4 +240,8 @@ function size_readable($size, $max = null, $system = 'si', $retstring = '%01.2f 
   }
 
   return sprintf($retstring, $size, $sys['prefix'][$i]);
+}
+
+function hts($s) {
+  return htmlspecialchars($s);
 }
