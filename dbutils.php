@@ -23,6 +23,8 @@
 //   id of the updated or inserted record.
 // updateorinsert_inserted() - Returns true if prior updateorinsert invocation
 //   resulted in the insertion of a new record.
+// deleteFrom($table, $keyvalues)
+// txBegin(), txCommit(), txCancel()
 //
 // Functions mostly for internal use:
 //
@@ -30,6 +32,9 @@
 // arraytosafe() - Used to stack up parameters into a string.
 //
 // ###########################################################################
+
+$dbutils_txcount = 0;
+$dbutils_history_callback = false;
 
 function mes($s) {
   return mysql_real_escape_string($s);
@@ -135,8 +140,10 @@ function updateorinsert_inserted() {
 
 function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues = false, $showerrors = true) {
   global $updateorinsert_inserted;
+  global $dbutils_history_callback;
+  $r = false;
   $updateorinsert_inserted = false;
-  mysql_query('START TRANSACTION');
+  txBegin();
   if (isset($keyvalues['id']) && (0+@$keyvalues['id'] == 0)) {
     $sql = 'SELECT * FROM `' . $table . '` WHERE false'; // inserting, so we short circuit this
   } else {
@@ -190,14 +197,21 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
     $i = mysql_insert_id();
     $updateorinsert_inserted = true;
   }
-  mysql_query('COMMIT');
+  if ($dbutils_history_callback !== false) {
+    $dbutils_history_callback($table, $keyvalues);
+  }  
+  txCommit();
   return $i;
 }
 
 function update($table, $keyvalues, $values = array(), $showerrors = true) {
+  global $dbutils_history_callback;
+  $r = false;
+  if ($dbutils_history_callback !== false) {
+    txBegin();
+  }
   $sql = 'UPDATE `' . $table . '` SET ';
   $sql .= arraytosafe($values);
-  $i = 0+@$f['id'];
   $sql .= ' WHERE ' . arraytosafe($keyvalues, true);
   mysql_query($sql);
   $e = mysql_error();
@@ -205,10 +219,14 @@ function update($table, $keyvalues, $values = array(), $showerrors = true) {
     if ($showerrors) {
       echo $e;
     }
-    return false;
   } else {
-    return true;
+    $r = true;
   }
+  if ($dbutils_history_callback !== false) {
+    $dbutils_history_callback($table, $keyvalues);
+    txCommit();
+  }
+  return $r;
 }
 
 function insert($table, $values, $showerrors = true) {
@@ -239,4 +257,72 @@ function insert($table, $values, $showerrors = true) {
   }
   $i = mysql_insert_id();
   return $i;
+}
+
+function deleteFrom($table, $keyvalues = array(), $showerrors = true, $limit = 0) {
+  if (!is_array($keyvalues)) {
+    $keyvalues = array('id' => 0+@$keyvalues);
+  }
+  if (count($keyvalues) > 0) {
+    $sql = 'DELETE FROM `' . $table . '` '
+    . ' WHERE ' . arraytosafe($keyvalues, true);
+    if ($limit > 0) {
+      $sql .= ' LIMIT ' . $limit;
+    }
+    mysql_query($sql);
+    $e = mysql_error();
+    if ($e > '') {
+      if ($showerrors) {
+        echo $e;
+      }
+      return false;
+    } else {
+      return true;
+    }
+  } else {
+    $e = 'No key/value given for delete.';
+    return false;
+  }
+}
+
+function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '', $showerrors = true) {
+  $r = false;
+  $qs = false;
+  if (!is_array($keyvalues)) {
+    $keyvalues = array('id' => 0+@$keyvalues);
+  }
+  if (count($keyvalues) > 0) {
+    $qs = 'SELECT ' . $fields . ' FROM `' . $table . '` '
+    . ' WHERE (' . arraytosafe($keyvalues, true) . ') ' . $clauses;
+  } else {
+    $e = 'No key/value given for delete.';
+    $r = false;
+  }
+  return $qs;
+}
+
+function txBegin() {
+  global $dbutils_txcount;
+  if (0+@$dbutils_txcount == 0) {
+    mysql_query('START TRANSACTION');
+  }
+  $dbutils_txcount++;
+}
+
+function txCommit() {
+  global $dbutils_txcount;
+  $dbutils_txcount--;
+  if (0+@$dbutils_txcount == 0) {
+    mysql_query('COMMIT');
+  }
+}
+
+function txCancel() {
+  global $dbutils_txcount;
+  $dbutils_txcount--;
+  if (0+@$dbutils_txcount <= 0) {
+    mysql_query('ROLLBACK');
+  } else {
+    die(); // something pretty bad happened
+  }
 }
