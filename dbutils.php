@@ -35,64 +35,103 @@
 
 $dbutils_txcount = 0;
 $dbutils_history_callback = false;
+$dbutils_show_errors = false;
 
 function mes($s) {
   return mysql_real_escape_string($s);
 }
 
-function q(&$q, $showerrors = true, $getnumrows = false) {
-  if (!is_array($q)) {
-    $s = $q;
-    $q = array();
-    $q['sql'] = $s;
-    $r = mysql_query($s);
-    $q['error'] = mysql_error();
-    if (''.@$q['error'] == '') {
-      $q['result'] = $r;
-      $q['waiting'] = true;
-      $q['n'] = 0;
+class Q {
+  private
+    $sql,
+    $result,
+    $n,
+    $cached_count,
+    $count,
+    $error,
+    $insert_id;
+  public function __construct($queryString) {
+    global $dbutils_show_errors;
+    $this->n = 0;
+    $this->insert_id = false;
+    $this->cached_count = false;
+    $this->sql = $queryString;
+    $sample = strtolower(trim(substr($queryString, 1, 7)));
+    $this->result = mysql_query($queryString);
+    $this->error = mysql_error();
+    if ($sample == 'insert') {
+      $this->insert_id = mysql_insert_id();
     }
-    if ($getnumrows) {
-      $q['count'] = mysql_num_rows($r);
+    if (''.@$this->error > '') {
+      $this->result = null;
+      if ($dbutils_show_errors) {
+        echo $this->error . "\r\n";
+        die();
+      }
     }
-    if (strtolower(substr($s, 0, 6)) == 'insert') {
-      $q['insert_id'] = mysql_insert_id();
+  }
+  public function count() {
+    if (!$this->cached_count) {
+      $this->count = mysql_num_rows($this->result);
+      $this->cached_count = true;
     }
-  } else {
-    $q['error'] = 'Already queried.';
+    return $this->count;
   }
-  if ($showerrors) {
-    echo $q['error'];
+  public function error() {
+    return $this->error;
   }
-  return $q;
-}
-
-function qf(&$q) {
-  if (is_array($q)) {
-    if (@$q['result']) {
-      mysql_free_result($q['result']);
+  public function insert_id() {
+    return $this->insert_id;
+  }
+  public function get_sql() {
+    return $this->sql;
+  }
+  public function get_cursor() {
+    return $this->n;
+  }
+  public function free() {
+    if ($this->result) {
+      mysql_free_result($this->result);
     }
-    $q = null;
   }
-  return true;
-}
-
-function sq(&$q, $showerrors = true, $getnumrows = false, $keepq = false) {
-  if (!is_array($q)) {
-    $q = q($q, $showerrors, $getnumrows);
-  }
-  if (@$q['waiting']) {
-    if ($f = mysql_fetch_assoc($q['result'])) {
-      $q['n']++;
+  public function fetch() {
+    if ($this->result) {
+      $f = mysql_fetch_assoc($this->result);
+      if ($f) {
+        $this->n++;
+      } else {
+        mysql_free_result($this->result);
+      }
       return $f;
     } else {
-      mysql_free_result($q['result']);
-      if (!$keepq) {
-        $q = null;
-      }
       return false;
     }
   }
+}
+//  look for usages of 'n'  "n"  "error" 'error' "insert_id" 'insert_id' "count" 'count'
+
+function qf(&$q) {
+  if (is_object($q)) {
+    $q = null; // no need to call free because null
+  }
+}
+
+function sq(&$query, $showerrors = true) {
+  global $dbutils_show_errors;
+  $dbutils_show_errors = $showerrors;
+  if (!is_object($query)) {
+    $query = new Q($query);
+  }
+  return $query->fetch();
+}
+
+function sqf($queryString, $showerrors = true) {
+  global $dbutils_show_errors;
+  $dbutils_show_errors = $showerrors;
+  $q = new Q($queryString);
+  $r = $q->fetch();
+  $q = null;
+  return $r;
 }
 
 function arraytosafe($values, $useand = false, $where = false) {
@@ -135,32 +174,35 @@ function arraytosafe($values, $useand = false, $where = false) {
 
 function updateorinsert_inserted() {
   global $updateorinsert_inserted;
-  return $updateorinsert_inserted;
+  return $updateorinsert_inserted; // this function is highly useful
 }
 
-function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues = false, $showerrors = true) {
-  global $updateorinsert_inserted;
+function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues = false) {
+  global $dbutils_show_errors;
   global $dbutils_history_callback;
+  global $updateorinsert_inserted;
+  $i = false;
   $r = false;
+  $allvalues = array_merge($keyvalues, $values);
+
   $updateorinsert_inserted = false;
   txBegin();
-  if (isset($keyvalues['id']) && (0+@$keyvalues['id'] == 0)) {
-    $sql = 'SELECT * FROM `' . $table . '` WHERE false'; // inserting, so we short circuit this
-  } else {
+  if ( (!isset($keyvalues['id'])) || (0+@$keyvalues['id'] != 0) ) {
+    // if the key value is based on an ID that is nonzero, or the key value is based on something other than ID:
+    
     $sql = 'SELECT * FROM `' . $table . '` WHERE ' . arraytosafe($keyvalues, true);
-  }
-  $allvalues = array_merge($keyvalues, $values);
-  $q = mysql_query($sql);
-  if ($f = mysql_fetch_assoc($q)) {
-    $sql = 'UPDATE `' . $table . '` SET ';
-    $sql .= arraytosafe($allvalues);
-    $i = 0+@$f['id'];
-    $sql .= ' WHERE id = ' . $i;
-    mysql_query($sql);
-    if ($showerrors) {
-      echo mysql_error();
+    if ($f = sqf($sql)) {
+      $i = 0+@$f['id'];
+      $r = true;
+      $sql = 'UPDATE `' . $table . '` SET ' . arraytosafe($allvalues) . ' WHERE id = ' . $i;
+      mysql_query($sql);
+      if ($dbutils_show_errors) {
+        echo mysql_error();
+      }
     }
-  } else {
+  }
+
+  if (!$r) {
     if ($insertonlyvalues !== false) {
       $allvalues = array_merge($allvalues, $insertonlyvalues);
     }
@@ -169,14 +211,7 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
         unset($allvalues['id']);
       }
     }
-    $sql = 'INSERT INTO `' . $table . '` (';
-    $first = true;
-    foreach ($allvalues as $name => $val) {
-      if (!$first) { $sql .= ', '; }
-      $sql .= '`' . $name . '`';
-      $first = false;
-    }
-    $sql .= ') VALUES (';
+    $sql = 'INSERT INTO `' . $table . '` (`' . implode('`, `', array_keys($allvalues)) . '`) VALUES (';
     $first = true;
     foreach ($allvalues as $name => $val) {
       if (!$first) { $sql .= ', '; }
@@ -191,8 +226,9 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
     }
     $sql .= ')';
     mysql_query($sql);
-    if ($showerrors) {
-      echo mysql_error();
+    $error = mysql_error();
+    if (($error > '') && $dbutils_show_errors) {
+      echo $error . "\r\n";
     }
     $i = mysql_insert_id();
     $updateorinsert_inserted = true;
@@ -204,45 +240,44 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
   return $i;
 }
 
-function update($table, $keyvalues, $values = array(), $showerrors = true) {
+function update($table, $keyvalues, $values = array()) {
   global $dbutils_history_callback;
+  global $dbutils_show_errors;
   $r = false;
   if ($dbutils_history_callback !== false) {
     txBegin();
   }
-  $sql = 'UPDATE `' . $table . '` SET ';
-  $sql .= arraytosafe($values);
-  $sql .= ' WHERE ' . arraytosafe($keyvalues, true);
+  $sql = 'UPDATE `' . $table
+  . '` SET ' . arraytosafe($values)
+  . ' WHERE ' . arraytosafe($keyvalues, true);
   mysql_query($sql);
-  $e = mysql_error();
-  if ($e > '') {
-    if ($showerrors) {
-      echo $e;
+  $error = mysql_error();
+  if ($error > '') {
+    if ($dbutils_show_errors) {
+      echo $error . "\r\n";
     }
   } else {
     $r = true;
   }
   if ($dbutils_history_callback !== false) {
+  echo $sql;
     $dbutils_history_callback($table, $keyvalues);
     txCommit();
   }
   return $r;
 }
 
-function insert($table, $values, $showerrors = true) {
-  $sql = 'INSERT INTO `' . $table . '` (';
-  $first = true;
-  foreach ($values as $name => $val) {
-    if (!$first) { $sql .= ', '; }
-    $sql .= '`' . $name . '`';
-    $first = false;
-  }
-  $sql .= ') VALUES (';
+function insert($table, $values) {
+  global $dbutils_show_errors;
+  $sql = 'INSERT INTO `' . $table . '` (`'
+  . implode('`, `', array_keys($values))
+  . '`) VALUES (';
+
   $first = true;
   foreach ($values as $name => $val) {
     if (!$first) { $sql .= ', '; }
     if (gettype($val) == 'string') {
-      $sql .= '"' . mes($val) . '"';
+      $sql .= '"' . mysql_real_escape_string($val) . '"';
     } elseif (gettype($val) == 'array') {
       $sql .= $val[0]; // raw expression
     } else {
@@ -252,14 +287,15 @@ function insert($table, $values, $showerrors = true) {
   }
   $sql .= ')';
   mysql_query($sql);
-  if ($showerrors) {
-    echo mysql_error();
+  $error = mysql_error();
+  if ($dbutils_show_errors && (''.@$error > '')) {
+    echo $error . "\r\n";
   }
-  $i = mysql_insert_id();
-  return $i;
+  return mysql_insert_id();
 }
 
-function deleteFrom($table, $keyvalues = array(), $showerrors = true, $limit = 0) {
+function deleteFrom($table, $keyvalues = array(), $limit = 0) {
+  global $dbutils_show_errors;
   if (!is_array($keyvalues)) {
     $keyvalues = array('id' => 0+@$keyvalues);
   }
@@ -272,7 +308,7 @@ function deleteFrom($table, $keyvalues = array(), $showerrors = true, $limit = 0
     mysql_query($sql);
     $e = mysql_error();
     if ($e > '') {
-      if ($showerrors) {
+      if ($dbutils_show_errors) {
         echo $e;
       }
       return false;
@@ -280,13 +316,15 @@ function deleteFrom($table, $keyvalues = array(), $showerrors = true, $limit = 0
       return true;
     }
   } else {
-    $e = 'No key/value given for delete.';
+    if ($dbutils_show_errors) {
+      echo 'No key/value given for delete.' . "\r\n";
+    }
     return false;
   }
 }
 
-function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '', $showerrors = true) {
-  $r = false;
+function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '') {
+  global $dbutils_show_errors;
   $qs = false;
   if (!is_array($keyvalues)) {
     $keyvalues = array('id' => 0+@$keyvalues);
@@ -295,8 +333,9 @@ function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '', $sh
     $qs = 'SELECT ' . $fields . ' FROM `' . $table . '` '
     . ' WHERE (' . arraytosafe($keyvalues, true) . ') ' . $clauses;
   } else {
-    $e = 'No key/value given for delete.';
-    $r = false;
+    if ($dbutils_show_errors) {
+      echo 'No key/value given for delete.' . "\r\n";
+    }
   }
   return $qs;
 }
