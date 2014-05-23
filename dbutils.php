@@ -100,7 +100,10 @@ class Q {
       if ($f) {
         $this->n++;
       } else {
-        mysql_free_result($this->result);
+        if ($this->result) {
+          mysql_free_result($this->result);
+          $this->result = null; // apparently this is more important than such things were in the non-class version of the code :)
+        }
       }
       return $f;
     } else {
