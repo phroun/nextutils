@@ -80,8 +80,8 @@ class Q {
       $this->moreErrors = array();
       mysqli_multi_query($dbutils_link, implode(';', $queryString));
       $this->result = mysqli_use_result($dbutils_link);
-      $this->error = mysql_error($dbutils_link);
-      while (mysqli_next_result($dbutils_link)) {
+      $this->error = mysqli_error($dbutils_link);
+      while (mysqli_more_results($dbutils_link) && mysqli_next_result($dbutils_link)) {
         $this->moreResults[] = mysqli_use_result($dbutils_link);
         $this->moreErrors[] = mysqli_error($dbutils_link);
       }
@@ -181,8 +181,16 @@ function sq(&$query, $showerrors = true) {
   global $dbutils_show_errors;
   $dbutils_show_errors = $showerrors;
   if (!is_object($query)) {
-    if (sqlWriteStatement($query)) {
-      assertDataNonRO('sq:' . $query);
+    if (is_array($query)) {
+      foreach ($query as $key => $val) {
+        if (sqlWriteStatement($val)) {
+          assertDataNonRO('sq:' . $val);
+        }
+      }
+    } else {
+      if (sqlWriteStatement($query)) {
+        assertDataNonRO('sq:' . $query);
+      }
     }
     $query = new Q($query);
   }
@@ -192,8 +200,16 @@ function sq(&$query, $showerrors = true) {
 function sqf($queryString, $showerrors = true) {
   global $dbutils_show_errors;
   $dbutils_show_errors = $showerrors;
-  if (sqlWriteStatement($queryString)) {
-    assertDataNonRO('sqf:' . $queryString);
+  if (is_array($queryString)) {
+    foreach ($queryString as $key => $val) {
+      if (sqlWriteStatement($val)) {
+        assertDataNonRO('sqf:' . $val);
+      }    
+    }
+  } else {
+    if (sqlWriteStatement($queryString)) {
+      assertDataNonRO('sqf:' . $queryString);
+    }
   }
   $q = new Q($queryString);
   $r = $q->fetch();
@@ -402,9 +418,14 @@ function deleteFrom($table, $keyvalues = array(), $limit = 0) {
 function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '') {
   global $dbutils_show_errors;
   $qs = false;
+  if (is_array($fields)) { // allow fields to be optional
+    $clauses = $keyvalues;
+    $keyvalues = $fields;
+    $fields = '*';
+  }
   if (($clauses == '') && is_array($keyvalues) && (count($keyvalues) == 0)) {
     // allow overloading for simplest form:  select('employee', 23)
-    if (is_int($fields)) {
+    if (is_numeric($fields)) {
       $keyvalues = $fields;
       $fields = '*';
     }
@@ -420,8 +441,9 @@ function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '') {
     . ' WHERE (' . arraytosafe($keyvalues, true) . ') ' . $clauses;
   } else {
     if ($dbutils_show_errors) {
-      echo 'No key/value given for delete.' . "\r\n";
+      echo 'No key/value given for select.' . "\r\n";
     }
+    die();
   }
   return $qs;
 }
@@ -436,7 +458,8 @@ function select($table, $fields, $keyvalues = array(), $clauses = '') {
     if ($qq >= 0) {
       if (!$dbutils_selstack[$qq][2]) {
         qf($dbutils_selstack[$qq][0]);
-        unset($dbutils_selstack[$qq]);
+        unset($GLOBALS['dbutils_selstack'][$qq]);
+        $GLOBALS['dbutils_selstack'] = array_values($GLOBALS['dbutils_selstack']);
         $cleaning = true;
       }
     }
@@ -445,27 +468,30 @@ function select($table, $fields, $keyvalues = array(), $clauses = '') {
   $q = getSelectFrom($table, $fields, $keyvalues, $clauses);
   $f = sq($q);
   $dbutils_selstack[] = array($q, $f, false);
-  $qq = count($dbutils_selstack) - 1;
-  
-  return sq($dbutils_selstack[$qq][1]);
+  return $f;
 }
 
 function selecta($table, $fields, $keyvalues = array(), $clauses = '') {
   $f = select($table, $fields, $keyvalues, $clauses);
   selectClose();
+  return $f;
 }
 
 function selectRow() {
   global $dbutils_selstack;
   $qq = count($dbutils_selstack) - 1;
-  $dbutils_selstack[$qq][2] = true;
-  if (isset($dbutils_selstack[$qq][1])) {
-    $f = $dbutils_selstack[$qq][1];
-    unset($dbutils_selstack[$qq][1]);
-    return $f;  
+  if ($qq >= 0) {
+    $dbutils_selstack[$qq][2] = true;
+    if (isset($dbutils_selstack[$qq][1])) {
+      $f = $dbutils_selstack[$qq][1];
+      unset($GLOBALS['dbutils_selstack'][$qq][1]);
+      return $f;  
+    } else {
+      $f = sq($dbutils_selstack[$qq][0]);
+      return $f;
+    }
   } else {
-    $f = sq($dbutils_selstack[$qq][0]);
-    return ;
+    return false;
   }
 }
 
@@ -525,8 +551,16 @@ function sqx($query, $showerrors = true) {
   global $dbutils_show_errors;
   $dbutils_show_errors = @$showerrors;
   if (!is_object($query)) {
-    if (sqlWriteStatement($query)) {
-      assertDataNonRO('sq:' . $query);
+    if (is_array($query)) {
+      foreach ($query as $key => $val) {
+        if (sqlWriteStatement($val)) {
+          assertDataNonRO('sq:' . $val);
+        }
+      }
+    } else {
+      if (sqlWriteStatement($query)) {
+        assertDataNonRO('sq:' . $query);
+      }
     }
     $query = new Q($query);
   }
@@ -575,12 +609,28 @@ function qsafe($qs) {
   $s = '';
   $nexttype = 0;
   $frag = false;
+  if (!is_array($qs)) {
+    $qs = func_get_args();
+  }
   if (is_array($qs)) {
     foreach ($qs as $k => $v) {
       $frag = !$frag;
       if ($frag) {
         $nexttype = 0;
-        $nt = substr($v, strlen($v) - 1, 1);
+        $nt = mb_substr($v, mb_strlen($v) - 1, 1);
+        $bad = false;
+        for ($x = 0; $ < mb_strlen($v); $x++) {
+          $ch = mb_substr($v, $x, 1);
+          if ( ($ch == '"')
+          || ($ch == "'")
+          || (($ch >= '0') && ($ch <= '9')) ) {
+            $bad = true;
+          }
+        }
+        if ($bad) {
+          echo 'Malformed query..';
+          die();
+        }
         if ($nt == '$') {
           $nexttype = 1;
         } elseif ($nt == '#') {
