@@ -25,6 +25,11 @@
 //   resulted in the insertion of a new record.
 // deleteFrom($table, $keyvalues)
 // txBegin(), txCommit(), txCancel()
+// qsafe() -- make a safe query string
+// selecta($table, [$fields,] $keyvalues, [$clauses]) -- just get one
+// select($table, [$fields,] $keyvalues, [$clauses])
+// selectRow() -- iterate over the result set obtained by select()
+// selectClose() -- used in conjunction with select() and selectRow
 //
 // Functions mostly for internal use:
 //
@@ -38,6 +43,7 @@ $dbutils_history_callback = false;
 $dbutils_show_errors = false;
 $dbutils_link = NULL;
 $dbutils_readonly = true;
+$dbutils_selstack = array();
 
 function mes($s) {
   global $dbutils_link;
@@ -48,6 +54,8 @@ class Q {
   private
     $sql,
     $result,
+    $moreResults,
+    $moreErrors,
     $n,
     $cached_count,
     $count,
@@ -60,14 +68,32 @@ class Q {
     $this->insert_id = false;
     $this->cached_count = false;
     $this->sql = $queryString;
-    $sample = strtolower(trim(substr($queryString, 1, 7)));
     if (!$dbutils_link) {
-      echo "No link when trying: " . $queryString . "\r\n";
+      if ($dbutils_show_errors) {
+        echo "No link when trying: " . $queryString . "\r\n";
+      } else {
+        die();
+      }
     }
-    $this->result = mysqli_query($dbutils_link, $queryString);
-    $this->error = mysqli_error($dbutils_link);
-    if ($sample == 'insert') {
-      $this->insert_id = mysqli_insert_id($dbutils_link);
+    if (is_array($queryString)) {
+      $this->moreResults = array();
+      $this->moreErrors = array();
+      mysqli_multi_query($dbutils_link, implode(';', $queryString));
+      $this->result = mysqli_use_result($dbutils_link);
+      $this->error = mysql_error($dbutils_link);
+      while (mysqli_next_result($dbutils_link)) {
+        $this->moreResults[] = mysqli_use_result($dbutils_link);
+        $this->moreErrors[] = mysqli_error($dbutils_link);
+      }
+    } else {
+      $sample = strtolower(trim(substr($queryString, 1, 7)));
+      $this->moreResults = array();
+      $this->moreErrors = array();
+      $this->result = mysqli_query($dbutils_link, $queryString);
+      $this->error = mysqli_error($dbutils_link);
+      if ($sample == 'insert') {
+        $this->insert_id = mysqli_insert_id($dbutils_link);
+      }
     }
     if (''.@$this->error > '') {
       $this->result = null;
@@ -175,13 +201,13 @@ function sqf($queryString, $showerrors = true) {
   return $r;
 }
 
-function arraytosafe($values, $useand = false, $where = false) {
+function arraytosafe($values, $useand = false) {
   $first = true;
   $sql = '';
   foreach ($values as $name => $val) {
-    $literal = (substr($name, 0, 1) == '&');
+    $literal = (''.(0+@$name) === ''.@$name);
 
-    if ($where||!$literal) {
+//    if (!$literal) {
       if (!$first) {
         if ($useand) {
           $sql .= ' AND ';
@@ -189,12 +215,10 @@ function arraytosafe($values, $useand = false, $where = false) {
           $sql .= ', ';
         }
       }
-    }
+//    }
 
     if ($literal) {
-      if ($where) {
-        $sql .= ' ' . substr($name, 1);
-      }
+      $sql .= $val;
     } else {
       $sql .= ' `' . $name . '` = ';
       if (gettype($val) == 'string') {
@@ -206,9 +230,9 @@ function arraytosafe($values, $useand = false, $where = false) {
       }
     }
 
-    if ($where||!$literal) {
+//    if (!$literal) {
       $first = false;
-    }
+//    }
   }
   return $sql;
 }
@@ -378,8 +402,18 @@ function deleteFrom($table, $keyvalues = array(), $limit = 0) {
 function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '') {
   global $dbutils_show_errors;
   $qs = false;
+  if (($clauses == '') && is_array($keyvalues) && (count($keyvalues) == 0)) {
+    // allow overloading for simplest form:  select('employee', 23)
+    if (is_int($fields)) {
+      $keyvalues = $fields;
+      $fields = '*';
+    }
+  }
   if (!is_array($keyvalues)) {
     $keyvalues = array('id' => 0+@$keyvalues);
+  }
+  if (is_array($clauses)) {
+    $clauses = qsafe($clauses);
   }
   if (count($keyvalues) > 0) {
     $qs = 'SELECT ' . $fields . ' FROM `' . $table . '` '
@@ -390,6 +424,58 @@ function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '') {
     }
   }
   return $qs;
+}
+
+function select($table, $fields, $keyvalues = array(), $clauses = '') {
+  global $dbutils_selstack;
+
+  $cleaning = true;
+  while ($cleaning) {
+    $cleaning = false;
+    $qq = count($dbutils_selstack) - 1;
+    if ($qq >= 0) {
+      if (!$dbutils_selstack[$qq][2]) {
+        qf($dbutils_selstack[$qq][0]);
+        unset($dbutils_selstack[$qq]);
+        $cleaning = true;
+      }
+    }
+  }
+  
+  $q = getSelectFrom($table, $fields, $keyvalues, $clauses);
+  $f = sq($q);
+  $dbutils_selstack[] = array($q, $f, false);
+  $qq = count($dbutils_selstack) - 1;
+  
+  return sq($dbutils_selstack[$qq][1]);
+}
+
+function selecta($table, $fields, $keyvalues = array(), $clauses = '') {
+  $f = select($table, $fields, $keyvalues, $clauses);
+  selectClose();
+}
+
+function selectRow() {
+  global $dbutils_selstack;
+  $qq = count($dbutils_selstack) - 1;
+  $dbutils_selstack[$qq][2] = true;
+  if (isset($dbutils_selstack[$qq][1])) {
+    $f = $dbutils_selstack[$qq][1];
+    unset($dbutils_selstack[$qq][1]);
+    return $f;  
+  } else {
+    $f = sq($dbutils_selstack[$qq][0]);
+    return ;
+  }
+}
+
+function selectClose() {
+  global $dbutils_selstack;
+  $qq = count($dbutils_selstack) - 1;
+  if ($qq >= 0) {
+    qf($dbutils_selstack[$qq][0]);
+    unset($dbutils_selstack[$qq]);
+  }
 }
 
 function txBegin() {
@@ -445,4 +531,72 @@ function sqx($query, $showerrors = true) {
     $query = new Q($query);
   }
   return $query->error();
+}
+
+function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
+  $port = ini_get('mysqli.default_port');
+  $parts = explode(']', $host);
+  if (count($parts) > 1) {
+    $port = str_replace(':', '', $parts[1]);
+    $host = str_replace('[', '', $parts[0]);
+  } else {
+    $parts = explode(':', $host);
+    if (count($parts) > 1) {
+      $port = $parts[1];
+      $host = $parts[0];
+    }
+  }
+  $error = '';
+  $dbconn = mysqli_connect($host, $user, $pass, $base, $port);
+  if (mysqli_connect_errno()) {
+    $error = mysqli_connect_error();
+    $error = 'DB connection failure: ' . $error;
+    die();
+  } else {
+    setDataLink($dbconn);
+    $error = mysqli_error($dbconn);
+    if ($error > '') {
+      $error = 'DB access failure: ' . $error;
+    }
+  }
+  if ($error > '') {
+    if ($graceful) {
+      return $error;
+    } else {
+      echo "\r\n" . $error . "\r\n";
+      die();
+    }
+  } else {
+    return $dbconn;
+  }
+}
+
+function qsafe($qs) {
+  $s = '';
+  $nexttype = 0;
+  $frag = false;
+  if (is_array($qs)) {
+    foreach ($qs as $k => $v) {
+      $frag = !$frag;
+      if ($frag) {
+        $nexttype = 0;
+        $nt = substr($v, strlen($v) - 1, 1);
+        if ($nt == '$') {
+          $nexttype = 1;
+        } elseif ($nt == '#') {
+          $nexttype = 2;
+        }
+      } else {
+        if ($nexttype == 1) {
+          $s .= '"' . mes($v) . '"';
+        } elseif ($nexttype == 2) {
+          $s .= (0+@$v);
+        } else {
+          echo 'Malformed query.';
+          die();
+        }
+      }
+    }
+  }
+  return $s;
 }
