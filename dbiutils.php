@@ -619,7 +619,7 @@ function qsafe($qs) {
         $nexttype = 0;
         $nt = mb_substr($v, mb_strlen($v) - 1, 1);
         $bad = false;
-        for ($x = 0; $ < mb_strlen($v); $x++) {
+        for ($x = 0; $x < mb_strlen($v); $x++) {
           $ch = mb_substr($v, $x, 1);
           if ( ($ch == '"')
           || ($ch == "'")
