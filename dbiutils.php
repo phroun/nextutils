@@ -484,10 +484,10 @@ function selectRow() {
     $dbutils_selstack[$qq][2] = true;
     if (isset($dbutils_selstack[$qq][1])) {
       $f = $dbutils_selstack[$qq][1];
-      unset($GLOBALS['dbutils_selstack'][$qq][1]);
-      return $f;  
+      unset($GLOBALS['dbutils_selstack'][$qq][1]); // remove preloaded item
+      return $f;
     } else {
-      $f = sq($dbutils_selstack[$qq][0]);
+      $f = sq($GLOBALS['dbutils_selstack'][$qq][0]);
       return $f;
     }
   } else {
@@ -500,7 +500,8 @@ function selectClose() {
   $qq = count($dbutils_selstack) - 1;
   if ($qq >= 0) {
     qf($dbutils_selstack[$qq][0]);
-    unset($dbutils_selstack[$qq]);
+    unset($GLOBALS['dbutils_selstack'][$qq]);
+    $GLOBALS['dbutils_selstack'] = array_values($GLOBALS['dbutils_selstack']);
   }
 }
 
@@ -635,7 +636,10 @@ function qsafe($qs) {
           $nexttype = 1;
         } elseif ($nt == '#') {
           $nexttype = 2;
+        } else {
+          $nt = '';
         }
+        $s .= mb_substr($v, 0, mb_strlen($v) - strlen($nt));
       } else {
         if ($nexttype == 1) {
           $s .= '"' . mes($v) . '"';
