@@ -4,7 +4,7 @@
 
 This file contains a lot of basic utility functions for use with PHP web development.  Some of these functions are in flux and will be improved upon in the future.  The baseutils library is fully Unicode compliant and requires the mbstring PHP extension to be enabled.
 
-#### First Class Functions
+#### Base Utility Functions
 
 ``setTimeZoneByOffset("+00:00")`` Sets the PHP default timezone to a match with the same offset specified (useful for back end of ajax auto detection)
 
