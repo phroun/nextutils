@@ -2,40 +2,7 @@
 // ###########################################################################
 // dbutils.php:  Utilities for PHP Database Development with MySQL
 // ===========================================================================
-// Version 2013-05-05
-//
-// To use the update or insertorupdate functions, tables must have an integer
-// autonumber column called "id" as the primary key.
-//
-// Contributors:
-//
-// * Jeff Day
-//
-// Quick Usage Guide:
-//
-// mes($s) - Sanitize a string value using mysql_real_escape_string.
-// sq($q, ...) - Turn string q into result set and return first result, or if
-//   q is already a result set, return next result. If last result, the result
-//   set will be freed and disposed of automatically.
-// insert($table, $values) - returns id of the inserted record
-// update($table, $keyvalues, $values) - returns true if successful
-// updateorinsert($table, $keyvalues, $values, $insertonlyvalues) - returns
-//   id of the updated or inserted record.
-// updateorinsert_inserted() - Returns true if prior updateorinsert invocation
-//   resulted in the insertion of a new record.
-// deleteFrom($table, $keyvalues)
-// txBegin(), txCommit(), txCancel()
-// qsafe() -- make a safe query string
-// selecta($table, [$fields,] $keyvalues, [$clauses]) -- just get one
-// select($table, [$fields,] $keyvalues, [$clauses])
-// selectRow() -- iterate over the result set obtained by select()
-// selectClose() -- used in conjunction with select() and selectRow
-//
-// Functions mostly for internal use:
-//
-// q(...) - Raw version of sq()
-// arraytosafe() - Used to stack up parameters into a string.
-//
+// Version 2015-07-20.  See README.md
 // ###########################################################################
 
 $dbutils_txcount = 0;
@@ -586,7 +553,6 @@ function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
   if (mysqli_connect_errno()) {
     $error = mysqli_connect_error();
     $error = 'DB connection failure: ' . $error;
-    die();
   } else {
     setDataLink($dbconn);
     $error = mysqli_error($dbconn);
