@@ -50,7 +50,7 @@ This is a database safety and convenience layer built upon the mysqli extension.
 
 ``setDataLink($conn, $readonly = false)`` Set the active data link to the object returned from a previous call to dbutils_connect().  The last dbutils_connect link is automatically set as the active data link, so this only needs to be called to switch back to a previous connection.
 
-``updateorinsert($table, $keyvalues, $values, [$insertonlyvalues])``  Looks in table for a row matching keyvalues, if found, updates with $values, otherwise inserts a new row with $newvalues and $insertonlyvalues merged.
+``updateorinsert($table, $keyvalues, $values, [$insertonlyvalues])``  Looks in table for a row matching keyvalues, if found, updates with $values, otherwise inserts a new row with $newvalues and $insertonlyvalues merged.  If id is specified as a keyvalue and is zero, it will be omitted during an insert so MySQL can auto-increment the value of this field instead.  If this function is successful, The record id of the updated or inserted row is returned.
 
 ``insertorupdate($table, $keyvalues, $values, [$insertonlyvalues])``  Alias for updateorinsert().
 
@@ -58,7 +58,7 @@ This is a database safety and convenience layer built upon the mysqli extension.
 
 ``update($table, $keyvalues, $values)``  Looks in table for a row matching keyvalues.  If found, updates values.  If not found, does nothing.  Returns false only if there was a database error.  **Should this be improved to return the record number instead?**
 
-``insert($table, $values)``  Inserts a new record in table with values and returns the new record id, or 0 if a failure occurred.
+``insert($table, $values)``  Inserts a new record in table with values and returns the new record id, or 0 if a failure occurred.  If id is specified and is zero, it will be omitted so MySQL can auto-increment the value of this field instead.
 
 ``deleteFrom($table, $keyvalues, [$limit])``  Delete matching records from table.
 
