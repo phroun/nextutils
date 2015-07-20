@@ -38,7 +38,7 @@ This file contains a lot of basic utility functions for use with PHP web develop
 
 ``hexDigitToDec($d)`` Useless less functional duplicate of PHP's hexdec() function, will be removed once phased out of projects.
 
-``size_readable(15000, "K", "si")`` Converts a size in raw bytes into a human readable size with either si or bi (binary) units. Second parameter is largest unit specifier to use.
+``size_readable(15000, "K", "si")`` Converts a size in raw bytes into a human readable size with either si or bi (binary) units. Second parameter is largest unit specifier to use. (BADLY NAMED, suggest rename to humanReadableSize)
 
 ``getBaseURL()`` detects and returns the relative base URL based on the request URI.  Intended for user before css and javascript inclusions, but since it pulls the current request, I'm not sure how this is different from "./" at the moment I'm writing this documentation.
 
@@ -116,7 +116,7 @@ With qsafe, you'd have to do it like this:
 
 What's going on here?  Lets take out every other argument and merge those strings together to get a better visual:
 
-``$qs = qsafe('SELECT SUBSTRING($, #, #)'); /* This won't work as is, it is just to demonstrate. */
+``$qs = qsafe('SELECT SUBSTRING($, #, #)'); /* This won't work as is, it is just to demonstrate. */``
 
 All we are doing is breaking this apart, and placing th literal values in adjacent parameters immediately following the $ and # tokens.
 
@@ -124,6 +124,6 @@ All we are doing is breaking this apart, and placing th literal values in adjace
 
 ``getSelectFrom($table, $fields, $keyvalues, [$clauses])``  Constructs a query string and returns it, in the basic form of: SELECT fields FROM table WHERE keyvalues clauses;  keyvalues is an associative array, and clauses is a qsafe-compatible array (see qsafe)
 
-``arraytosafe($a, $useand = false)`` Turns an associative array of key values pairs (or literal query fragments with an (auto)numbered key) into either `field` = "value", `field` = "value" notation or the same thing with AND instead of a comma separating each pair.
+``arraytosafe($a, $useand = false)`` Turns an associative array of key values pairs (or literal query fragments with an (auto)numbered key) into either `field` = "value", `field` = "value" notation or the same thing with AND instead of a comma separating each pair.  (BADLY NAMED)
 
 ``mes($s)`` Calls mysqli_real_escape_string with the currently active link.  This is used internally by qsafe, and was used directly by a lot of projects before we added qsafe.  For new projects, qsafe should be used instead.
