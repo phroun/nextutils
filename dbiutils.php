@@ -535,6 +535,10 @@ function sqx($query, $showerrors = true) {
   return $query->error();
 }
 
+function dbutils_close($link) {
+  mysqli_close($link);
+}
+
 function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
   $port = ini_get('mysqli.default_port');
   $parts = explode(']', $host);
