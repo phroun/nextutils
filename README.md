@@ -6,21 +6,9 @@ This file contains a lot of basic utility functions for use with PHP web develop
 
 #### Base Utility Functions
 
-``setTimeZoneByOffset("+00:00")`` Sets the PHP default timezone to a match with the same offset specified (useful for back end of ajax auto detection)
-
-``tzOffset("America/Los_Angeles")`` Get the current offset for the named timezone in "+00:00" format.
-
-``luminanceOfHex('99CCFF')`` Returns the optically weighted luminance score for a 3 or 6 digit hexadecimal color string.
-
 ``selected($expr)`` if true, returns ' selected="selected"', otherwise returns a blank string
 
 ``checked($expr)`` if true, returns ' checked="checked"', otherwise returns a blank string
-
-``dtLocal("0000-00-00 00:00:00")`` takes a MySQL style UTC time string and returns the same format of string converted to the current PHP local timezone.
-
-``dtUTC("0000-00-00 00:00:00")``  takes a MySQL style local time string and returns the same format of string converted to UTC.
-
-``formatDuration($seconds, $usedays = true)``  returns a duration in "mm:ss" or "hh:mm:ss" or "x days" format as appropriate.
 
 ``boolToInt($expr)`` if true returns -1 otherwise returns 0
 
@@ -28,9 +16,21 @@ This file contains a lot of basic utility functions for use with PHP web develop
 
 ``hts($s)`` alias for htmlspecialchars, used to output properly escaped textual data into an html document.
 
+``xmlentities($s)`` convert named character entities not defined in the XML serialization into XHTML5 compatible numeric entities.
+
+``setTimeZoneByOffset("+00:00")`` Sets the PHP default timezone to a match with the same offset specified (useful for back end of ajax auto detection)
+
+``tzOffset("America/Los_Angeles")`` Get the current offset for the named timezone in "+00:00" format.
+
+``dtLocal("0000-00-00 00:00:00")`` takes a MySQL style UTC time string and returns the same format of string converted to the current PHP local timezone.
+
+``dtUTC("0000-00-00 00:00:00")``  takes a MySQL style local time string and returns the same format of string converted to UTC.
+
 ``generateRandomString($length)`` returns a mixed case alphanumeric random string of the specified length.
 
-``xmlentities($s)`` convert named character entities not defined in the XML serialization into XHTML5 compatible numeric entities.
+``luminanceOfHex('99CCFF')`` Returns the optically weighted luminance score for a 3 or 6 digit hexadecimal color string.
+
+``formatDuration($seconds, $usedays = true)``  returns a duration in "mm:ss" or "hh:mm:ss" or "x days" format as appropriate.
 
 #### Functions with Improvements Planned
 
