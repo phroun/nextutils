@@ -56,7 +56,7 @@ This is a database safety and convenience layer built upon the mysqli extension.
 
 ``updateorinsert_inserted()``  Returns true if the previous updateorinsert performed an insert rather than an update.
 
-``update($table, $keyvalues, $values)``  Looks in table for a row matching keyvalues.  If found, updates values.  If not found, does nothing.  Returns false only if there was a database error.  **Should this be improved to return the record number instead?**
+``update($table, $keyvalues, $values, [$clauses])``  Looks in table for a row matching keyvalues.  If found, updates values.  If not found, does nothing.  Returns false only if there was a database error.  **Should this be improved to return the record number instead?**
 
 ``insert($table, $values)``  Inserts a new record in table with values and returns the new record id, or 0 if a failure occurred.  If id is specified and is zero, it will be omitted so MySQL can auto-increment the value of this field instead.
 
