@@ -283,7 +283,7 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
   return $i;
 }
 
-function update($table, $keyvalues, $values = array()) {
+function update($table, $keyvalues, $values = array(), $clauses = '') {
   global $dbutils_history_callback;
   global $dbutils_show_errors;
   global $dbutils_link;
@@ -295,6 +295,12 @@ function update($table, $keyvalues, $values = array()) {
   $sql = 'UPDATE `' . $table
   . '` SET ' . arraytosafe($values)
   . ' WHERE ' . arraytosafe($keyvalues, true);
+  if (is_array($clauses)) {
+    $clauses = qsafe($clauses);
+  }
+  if ($clauses > '') {
+    $sql .= ' ' . $clauses;
+  }              
   mysql_query($sql, $dbutils_link);
   $error = mysql_error($dbutils_link);
   if ($error > '') {
@@ -302,7 +308,7 @@ function update($table, $keyvalues, $values = array()) {
       echo $error . "\r\n";
     }
   } else {
-    $r = true;
+    $r = mysql_affected_rows($dbutils_link);
   }
   if ($dbutils_history_callback !== false) {
     $dbutils_history_callback($table, $keyvalues);

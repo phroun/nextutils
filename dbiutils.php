@@ -315,7 +315,7 @@ function update($table, $keyvalues, $values = array(), $clauses = '') {
       echo $error . "\r\n";
     }
   } else {
-    $r = true;
+    $r = mysqli_affected_rows($dbutils_link);
   }
   if ($dbutils_history_callback !== false) {
     $dbutils_history_callback($table, $keyvalues);
