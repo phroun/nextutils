@@ -92,7 +92,7 @@ function hexDigitToDec($d) {
 
 function luminanceOfHex($hex) {
 
-  if (strlen_mb($hex) == 6) { // only read major digits if 6-digit value
+  if (mb_strlen($hex) == 6) { // only read major digits if 6-digit value
 
     $r = hexDigitToDec(substr($hex, 0, 1));
     $g = hexDigitToDec(substr($hex, 2, 1));
@@ -101,7 +101,7 @@ function luminanceOfHex($hex) {
       $r = 15; $g = 15; $b = 15;
     }
 
-  } elseif (strlen_mb($hex) == 3) {
+  } elseif (mb_strlen($hex) == 3) {
 
     $r = hexDigitToDec(substr($hex, 0, 1));
     $g = hexDigitToDec(substr($hex, 1, 1));
@@ -135,7 +135,7 @@ function checked($comp) {
 function dtLocal($dtval) {
   if ($dtval == '0000-00-00 00:00:00') { // zero
     return $dtval;
-  } elseif (strlen_mb($dtval) == 10) { // date only
+  } elseif (mb_strlen($dtval) == 10) { // date only
     return $dtval;
   } elseif ($dtval == '') { // null
     return $dtval;
@@ -151,7 +151,7 @@ function dtLocal($dtval) {
 function dtUTC($dtval) {
   if ($dtval == '0000-00-00 00:00:00') { // zero
     return $dtval;
-  } elseif (strlen_mb($dtval) == 10) { // date only
+  } elseif (mb_strlen($dtval) == 10) { // date only
     return $dtval;
   } elseif ($dtval == '') { // null
     return $dtval;
