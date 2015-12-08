@@ -545,7 +545,7 @@ function dbutils_close($link) {
   mysqli_close($link);
 }
 
-function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
+function dbutils_connect($host, $user, $pass, $base = '', $graceful = false, $timeout = 30) {
   $port = ini_get('mysqli.default_port');
   $parts = explode(']', $host);
   if (count($parts) > 1) {
@@ -559,8 +559,10 @@ function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
     }
   }
   $error = '';
-  $dbconn = mysqli_connect($host, $user, $pass, $base, $port);
-  if (mysqli_connect_errno()) {
+  $dbconn = mysqli_init();
+  mysqli_options($dbconn, MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
+  $good = mysqli_real_connect($dbconn, $host, $user, $pass, $base, $port);
+  if (!$good) { // mysqli_connect_errno()
     $error = mysqli_connect_error();
     $error = 'DB connection failure: ' . $error;
   } else {
