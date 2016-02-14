@@ -1,23 +1,22 @@
 <?php
 
+echo "includes\r\n";
 include('baseutils.php');
 include('dbiutils.php');
 
-echo 'included';
-
 $baseutils_errors_visible = false;
+
+echo "set error handler\r\n";
 set_error_handler('baseutils_errorHandler');
 
 function things() {
-  echo 'set error handler';
 
+  echo "write statement\r\n";
   sqlWriteStatement('');
 
-  echo 'write statement';
-
+  echo "mes\r\n";
   echo mes('This is a thing');
 
-  echo 'mes';
 }
 
 things();
