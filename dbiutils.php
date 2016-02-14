@@ -104,7 +104,8 @@ class Q {
 
       $this->moreResults = array();
       $this->moreErrors = array();
-      mysqli_multi_query($dbutils_link, implode(';', $queryString));
+      $combinedQueryString = implode(';', $queryString);
+      mysqli_multi_query($dbutils_link, $combinedQueryString);
       $this->result = mysqli_use_result($dbutils_link);
       $this->error = mysqli_error($dbutils_link);
       while (mysqli_more_results($dbutils_link) && mysqli_next_result($dbutils_link)) {
@@ -112,6 +113,7 @@ class Q {
         $this->moreErrors[] = mysqli_error($dbutils_link);
       }
     } else {
+      $combinedQueryString = ''.@$queryString;
 
       if (''.@$queryString == '') {
         dbiutils_stack_trace('No SQL statement given', 0+@$stack_trace_level);
@@ -128,7 +130,7 @@ class Q {
     }
     if (''.@$this->error > '') {
       $this->result = null;
-      throw new Exception('MySQL: ' . $this->error);
+      throw new Exception('MySQL: ' . $this->error . '  [QUERY: ' . $combinedQueryString . ']');
     }
   }
   public function count() {
@@ -380,7 +382,7 @@ function updateorinsert($table = '', $keyvalues = array(), $values = array(), $i
       $errortext = mysqli_error($dbutils_link);
       if ($errortext > '') {
         if ($dbutils_show_errors) {
-          dbiutils_stack_trace('MySQL: ' . $errortext, $stack_trace_level);
+          dbiutils_stack_trace('MySQL: ' . $errortext . ' [QUERY: ' . $sql . ']', $stack_trace_level);
         }
         txCancel();
         return false;
@@ -430,7 +432,7 @@ function updateorinsert($table = '', $keyvalues = array(), $values = array(), $i
     $error = mysqli_error($dbutils_link);
     if ($error > '') {
       if ($dbutils_show_errors) {
-        dbiutils_stack_trace('MySQL: ' . $error, $stack_trace_level);
+        dbiutils_stack_trace('MySQL: ' . $error . ' [QUERY: ' . $sql . ']', $stack_trace_level);
       }
       txCancel();
       return false;
@@ -479,11 +481,18 @@ function update($table = '', $keyvalues = array(), $values = array(), $clauses =
 
   assertDataNonRO('update:' . $table);
   $r = false;
+
+  $valuestoset = arraytosafe($values);
+  if ($valuestoset == '') {
+    dbiutils_stack_trace('No values specified', $stack_trace_level);
+    return false;
+  }
   if ($dbutils_history_callback !== false) {
     txBegin();
   }
+
   $sql = 'UPDATE `' . $table
-  . '` SET ' . arraytosafe($values)
+  . '` SET ' . $valuestoset
   . ' WHERE ' . arraytosafe($keyvalues, true);
   if (is_array($clauses)) {
     $clauses = ''.@qsafe($clauses, 1+@$stack_trace_level);
@@ -495,7 +504,7 @@ function update($table = '', $keyvalues = array(), $values = array(), $clauses =
   $error = mysqli_error($dbutils_link);
   if ($error > '') {
     if ($dbutils_show_errors) {
-      dbiutils_stack_trace('MySQL: ' . $error, $stack_trace_level);
+      dbiutils_stack_trace('MySQL: ' . $error . ' [QUERY: ' . $sql . ']', $stack_trace_level);
     }
     if ($dbutils_history_callback !== false) {
       txCancel();
@@ -563,7 +572,7 @@ function insert($table = '', $values = array(), $stack_trace_level = 0) {
   $error = @mysqli_error($dbutils_link);
   if ($error > '') {
     if ($dbutils_show_errors) {
-      dbiutils_stack_trace('MySQL: ' . $error, $stack_trace_level);
+      dbiutils_stack_trace('MySQL: ' . $error . ' [QUERY: ' . $sql . ']', $stack_trace_level);
     }
     return false;
   }
@@ -607,7 +616,7 @@ function deleteFrom($table, $keyvalues = array(), $limit = 0, $stack_trace_level
   $error = mysqli_error($dbutils_link);
   if ($error > '') {
     if ($dbutils_show_errors) {
-      dbiutils_stack_trace('MySQL: ' . $error, $stack_trace_level);
+      dbiutils_stack_trace('MySQL: ' . $error . ' [QUERY: ' . $sql . ']', $stack_trace_level);
     }
     return false;
   }
