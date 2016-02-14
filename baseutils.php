@@ -31,16 +31,24 @@
 //
 // ###########################################################################
 
+$baseutils_errors_visible = false;
+
 function logline($s) {
   global $INSTANCE; // for concurrency
   global $MESSAGELOGFN;
+  
   if ($MESSAGELOGFN == '') { // try messages if no other log file specified:
     $MESSAGELOGFN = '/var/log/messages';
   }
+  if (ini_get('error_log') == '') {
+    ini_set('error_log', $MESSAGELOGFN);
+  }
+
   $sri = '';
   if (''.@$INSTANCE > '') {
     $sri = $INSTANCE . '@';
   }
+  date_default_timezone_set(@date_default_timezone_get());
   error_log('[' . $sri . date('Y-m-d H:i:s') . '] ' . $s . "\n", 3, $MESSAGELOGFN);
 }
 
@@ -551,3 +559,36 @@ function getBaseURL() {
   return $pn;
 }
 
+function baseutils_errorHandler($errno, $errstr, $errfile, $errline) {
+  global $baseutils_errors_visible;
+
+  if (!(error_reporting() & $errno)) {
+    // This error code is not included in error_reporting
+    return;
+  }
+
+  $errtype = 'UNKNOWN';
+  switch ($errno) {
+    case E_USER_ERROR: $errtype = 'ERROR'; break;
+    case E_USER_WARNING: $errtype = 'WARNING'; break;
+    case E_USER_NOTICE: $errtype = 'NOTICE'; break;
+  }
+
+  $s = explode("\r", $errstr);
+  foreach ($s as $line) {
+    $line = trim($line);
+    if ($line != 'Above error reporting') {
+      if ($baseutils_errors_visible) {
+        echo "\r\n" . $errtype . ' (' . $errfile . ':' . $errline . '): ' . $line;
+      }
+      logline($errtype . ' (' . $errfile . ':' . $errline . '): ' . $line);
+    }
+  }
+  if ($baseutils_errors_visible) {
+    echo "\r\n";
+  }
+  if ($errtype == 'ERROR') {
+    exit(1);
+  }
+  return true;
+}
