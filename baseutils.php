@@ -544,7 +544,7 @@ function xmlentities($s) {
 }
 
 function getBaseURL() {
-  $pn = $_SERVER['REQUEST_URI'];
+  $pn = ''.@$_SERVER['REQUEST_URI'];
   $firstslash = substr($pn, 0, 1) == '/';
   $lastslash = substr($pn, strlen($pn) - 1, 1) == '/';
   if (!$lastslash) {
