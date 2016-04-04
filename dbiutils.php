@@ -36,6 +36,17 @@ function dbiutils_stack_trace($error_msg, $stack_trace_level) {
   return trigger_error($error_msg, E_USER_WARNING);
 }
 
+function dbiutils_is_valid_connection($link = false) {
+  global $dbutils_link;
+  if (!$link) {
+    $link = $dbutils_link;
+  }
+  return ($link
+  && is_object($link)
+  && (get_class($link) == 'mysqli')
+  && ($link->connect_error == ''));
+}
+
 function dbiutils_assert_connection($stack_trace_level = 0) {
   global $dbutils_link;
   if (!is_object($dbutils_link)) {
@@ -44,6 +55,10 @@ function dbiutils_assert_connection($stack_trace_level = 0) {
   }
   if (get_class($dbutils_link) != 'mysqli') {
     dbiutils_stack_trace('No connection specified (use setDataLink or dbutils_connect)', $stack_trace_level + 1);
+    return false;
+  }
+  if ($dbutils_link->connect_error) {
+    dbiutils_stack_trace('Invalid connection specified (use setDataLink or dbutils_connect): ' . $dbutils_link->connect_error, $stack_trace_level + 1);
     return false;
   }
   
@@ -122,10 +137,18 @@ class Q {
       $sample = strtolower(trim(substr($queryString, 1, 7)));
       $this->moreResults = array();
       $this->moreErrors = array();
-      $this->result = mysqli_query($dbutils_link, $queryString);
-      $this->error = mysqli_error($dbutils_link);
-      if ($sample == 'insert') {
-        $this->insert_id = mysqli_insert_id($dbutils_link);
+
+      if (!$dbutils_link) {
+        dbiutils_stack_trace('Invalid connection specified', 0+@$stack_trace_level);
+      } else {
+        $this->result = mysqli_query($dbutils_link, $queryString);
+        if (!$this->result) {
+          dbiutils_stack_trace('Something wrong with: ' . $queryString, 0+@$stack_trace_level);
+        }
+        $this->error = mysqli_error($dbutils_link);
+        if ($sample == 'insert') {
+          $this->insert_id = mysqli_insert_id($dbutils_link);
+        }
       }
     }
     if (''.@$this->error > '') {
@@ -237,13 +260,18 @@ function sq(&$query, $showerrors = true, $stack_trace_level = 0) {
         assertDataNonRO('sq:' . $query);
       }
     }
-    $query = new Q($query);
+    $query = new Q($query, 1);
   }
-  return $query->fetch();
+  if (is_object($query)) {
+    return $query->fetch();
+  } else {
+    return false;
+  }
 }
 
 function sqf($queryString, $showerrors = true) {
   global $dbutils_show_errors;
+
   $dbutils_show_errors = $showerrors;
   if (is_array($queryString)) {
     $qc = 0;
@@ -273,8 +301,12 @@ function sqf($queryString, $showerrors = true) {
       assertDataNonRO('sqf:' . $queryString);
     }
   }
-  $q = new Q($queryString);
-  $r = $q->fetch();
+  $q = new Q($queryString, 1);
+  if (is_object($q)) {
+    $r = $q->fetch();
+  } else {
+    $r = false;
+  }
   $q = null;
   return $r;
 }
@@ -834,23 +866,30 @@ function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
   }
   $error = '';
   $dbconn = mysqli_connect($host, $user, $pass, $base, $port);
-  if (mysqli_connect_errno()) {
+  if (!isset($dbconn)) {
     $error = mysqli_connect_error();
-    $error = 'DB connection failure: ' . $error;
+    $error = 'DB connection failure (' . mysqli_connect_errno() . '): ' . $error;
   } else {
-    setDataLink($dbconn);
-    $error = mysqli_error($dbconn);
+    $error = $dbconn->connect_error;
+    if (''.@$error == '') {
+      $error = ''.@mysqli_error($dbconn);
+    }
     if ($error > '') {
       $error = 'DB access failure: ' . $error;
     }
   }
   if ($error > '') {
+    setDataLink(null);
     if ($graceful) {
+      logline('CONNECTING: ' . $host . ' - error');
       return $error;
     } else {
+      logline('CONNECTING: ' . $host . ' - error');
       throw new Exception($error); // was die();
     }
   } else {
+    setDataLink($dbconn);
+    logline('CONNECTING: ' . $host . '!!');
     return $dbconn;
   }
 }
