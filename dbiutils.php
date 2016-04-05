@@ -43,8 +43,7 @@ function dbiutils_is_valid_connection($link = false) {
   }
   return ($link
   && is_object($link)
-  && (get_class($link) == 'mysqli')
-  && ($link->connect_error == ''));
+  && (get_class($link) == 'mysqli'));
 }
 
 function dbiutils_assert_connection($stack_trace_level = 0) {
@@ -57,17 +56,13 @@ function dbiutils_assert_connection($stack_trace_level = 0) {
     dbiutils_stack_trace('No connection specified (use setDataLink or dbutils_connect)', $stack_trace_level + 1);
     return false;
   }
-  if ($dbutils_link->connect_error) {
-    dbiutils_stack_trace('Invalid connection specified (use setDataLink or dbutils_connect): ' . $dbutils_link->connect_error, $stack_trace_level + 1);
-    return false;
-  }
   
   return true;
 }
 
 function mes($s) {
   global $dbutils_link;
-  if (dbiutils_assert_connection(0)) {
+  if (dbiutils_is_valid_connection($dbutils_link)) {
     return mysqli_real_escape_string($dbutils_link, $s);
   } else {
     return false;
@@ -866,11 +861,13 @@ function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
   }
   $error = '';
   $dbconn = mysqli_connect($host, $user, $pass, $base, $port);
-  if (!isset($dbconn)) {
-    $error = mysqli_connect_error();
-    $error = 'DB connection failure (' . mysqli_connect_errno() . '): ' . $error;
+  $errmsg = mysqli_connect_error();
+  $errno = mysqli_connect_errno();
+  if (get_class($dbconn) != 'mysqli') {
+    $error = $errmsg;
+    $error = 'DB connection failure (' . $errno . '): ' . $error;
   } else {
-    $error = $dbconn->connect_error;
+    $error = $errmsg;
     if (''.@$error == '') {
       $error = ''.@mysqli_error($dbconn);
     }
@@ -881,15 +878,12 @@ function dbutils_connect($host, $user, $pass, $base = '', $graceful = false) {
   if ($error > '') {
     setDataLink(null);
     if ($graceful) {
-      logline('CONNECTING: ' . $host . ' - error');
       return $error;
     } else {
-      logline('CONNECTING: ' . $host . ' - error');
       throw new Exception($error); // was die();
     }
   } else {
     setDataLink($dbconn);
-    logline('CONNECTING: ' . $host . '!!');
     return $dbconn;
   }
 }
