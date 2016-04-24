@@ -944,3 +944,133 @@ function qsafe($qs, $stack_trace_level = 0) {
   }
   return $s;
 }
+
+function dbutils_getDataSchema() {
+  $qs = 'SHOW TABLES';
+
+  $idtables  = array();
+  $relations = array();
+  $schema    = array();
+
+  while ($ft = sq($qs)) {
+    foreach ($ft as $k => $v) {
+      $schema[$v] = 1;
+      $qst = 'SHOW COLUMNS IN `' . $v . '`';
+      while ($ff = sq($qst)) {
+        $s     = $v;
+        foreach ($ff as $kk => $vv) {
+          $s .= ':' . $vv;
+        }
+        $schema[$s] = 1;
+      }
+    }
+  }
+  ksort($schema);
+  return array_keys($schema);
+}
+
+function dbutils_compareSchemas($schema_old, $schema_new) {
+  $schema = array_flip($schema_old);
+  $schemb = array_flip($schema_new);
+  $res = array();
+  foreach ($schema as $la => $nd) {
+    if (isset($schemb[$la])) {
+      unset($schemb[$la]);
+      unset($schema[$la]);
+    }
+  }
+  foreach ($schema as $key => $val) {
+    $cp = explode(':', $key);
+    array_splice($cp, 2, 0, '-');
+    $res[] = implode(':', $cp);
+  }
+  foreach ($schemb as $key => $val) {
+    $cp = explode(':', $key);
+    array_splice($cp, 2, 0, '+');
+    $res[] = implode(':', $cp);
+  }
+  sort($res);
+  foreach ($res as $key => $val) {
+    $cp = explode(':', $val);
+    if (count($cp) == 2) {
+      $cp = array($cp[1], $cp[0]);
+    } else {
+      $op = $cp[2];
+      unset($cp[2]);
+      array_unshift($cp, $op);
+    }
+    $res[$key] = implode(':', $cp);
+  }
+  return $res;
+}
+
+function dbutils_checkRelations() {
+  $qs = 'SHOW TABLES';
+
+  $idtables  = array();
+  $relations = array();
+  
+  $results = array();
+  
+  $results['passed'] = false;
+  $results['missingReferencedTables'] = array();
+  $results['orphans'] = array();
+  $results['indexing'] = array();
+
+  while ($ft = sq($qs)) {
+    foreach ($ft as $k => $v) {
+      $qst = 'SHOW COLUMNS IN `' . $v . '`';
+      while ($ff = sq($qst)) {
+        $found = false;
+        foreach ($ff as $kk => $vv) {
+          if ($vv == 'id') {
+            $idtables[$v] = 1;
+          }
+          if ((!$found) && (substr_mb($vv, 0, 1) == 'k') && (substr_mb($vv, 0, 3) != 'key')) {
+            $found              = true;
+            $relations[$v][$vv] = 1;
+          }
+        }
+      }
+    }
+  }
+
+  $bad = false;
+  foreach ($relations as $tab => $v) {
+    foreach ($v as $field => $v) {
+      $rtab  = substr_mb($field, 1);
+      $crtab = explode('_', $rtab);
+      $rtab  = '' . @$crtab[0];
+      if (0 + @$idtables[$rtab] == 0) {
+        $bad = true;
+        $results['missingReferencedTables'][] = $tab . '.' . $field;
+      } else {
+        $starttime = microtime();
+        $qs = 'SELECT `' . $tab . '`.id, `' . $tab . '`.`' . $field . '`'
+            . ' FROM `' . $tab . '`'
+            . ' LEFT JOIN `' . $rtab . '` AS xlxl ON xlxl.id = `' . $tab . '`.`' . $field . '`'
+            . ' WHERE `' . $tab . '`.`' . $field . '` > 0 AND ISNULL(xlxl.id)';
+        while ($forphan = sq($qs)) {
+          if (!isset($results['orphans'][$tab . '.' . $field])) {
+            $results['orphans'][$tab . '.' . $field] = array();
+          }
+          if (!isset($results['orphans'][$tab . '.' . $field][$forphan[$field]])) {
+            $results['orphans'][$tab . '.' . $field][$forphan[$field]] = array();
+          }
+          $results['orphans'][$tab . '.' . $field][$forphan[$field]][] = $forphan['id'];
+          $bad = true;
+        }
+        $endtime = microtime();
+        $diff = ($endtime - $starttime);
+        if ($diff >= 0.001) {
+          $results['indexing'][$tab . '.' . $field] = $diff;
+        }
+      }
+    }
+  }
+  arsort($results['indexing']);
+  if (!$bad) {
+    $results['passed'] = true;
+  }
+  return $results;
+}
