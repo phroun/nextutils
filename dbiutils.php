@@ -283,7 +283,7 @@ function arraytosafe($values, $useand = false) {
   $first = true;
   $sql = '';
   foreach ($values as $name => $val) {
-    $literal = (''.(0+@$name) === ''.@$name);
+    $literal = @(''.(0+@$name) === ''.@$name);
 
 //    if (!$literal) {
       if (!$first) {
