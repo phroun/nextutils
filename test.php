@@ -1,5 +1,9 @@
 <?php
 
+$x = 2;
+
+echo 'hello' . 0+@$x;
+
 echo "includes\r\n";
 include('baseutils.php');
 include('dbiutils.php');

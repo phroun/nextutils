@@ -173,12 +173,17 @@ function dtUTC($dtval) {
   }
 }
 
-function tzOffset($tz = '') {
+function tzOffset($tz = '', $ignoredst = false) {
   if ($tz != '') {
     $oldtz = date_default_timezone_get();
     date_default_timezone_set($tz);
   }
   $tzoff = floor(date('Z')/60);
+  if (0+@date('I') == 1) {
+    if ($ignoredst) {
+      $tzoff -= 60; // make up for DST
+    }
+  }
   $sign = ($tzoff < 0);
   if ($sign) { $tzoff *= -1; }
   $tzhr = floor($tzoff / 60);
