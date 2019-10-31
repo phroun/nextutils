@@ -14,12 +14,15 @@ $dbutils_selstack = array();
 $dbutils_tx_failure_exception = false;
 $dbiutils_die_if_malformed = false; // allow qsafe() legacy behavior
 
-function dbiutils_stack_trace($error_msg, $stack_trace_level) {
+function dbiutils_stack_trace($error_msg, $stack_trace_level, $continue = false, $maxlevel = false) {
   $stack = debug_backtrace();
   $first = true;
   $n = 0;
-  for ($i = $stack_trace_level + 1; $i < count($stack); $i++) {
-    $frame = $stack[$i];
+  if ($maxlevel == false) {
+    $maxlevel = count($stack);
+  }
+  for ($i = $stack_trace_level + 1; $i < $maxlevel; $i++) {
+    $frame = @$stack[$i];
     if (!$frame) {
       break;
     }
@@ -27,13 +30,34 @@ function dbiutils_stack_trace($error_msg, $stack_trace_level) {
       $error_msg .= ' in call to ' . $frame['function'] . '() at ';
     } else {
       $n++;
-      $error_msg .= "\r\n ... Stack Trace(" . $n . '):  During call to ' . $frame['function'] . '() invoked at ';
+      if (!$continue) {
+        $error_msg .= "\r\n";
+      }
+      $error_msg .= ' ... Stack Trace(' . $n . '):  During call to ' . @$frame['function'] . '() invoked at ';
     }
     $first = false;
-    $error_msg .= $frame['file'] . ':' . $frame['line'];
+    $error_msg .= @$frame['file'] . ':' . @$frame['line'];
   }
-  $error_msg .= " \r\nAbove error reporting";
-  return trigger_error($error_msg, E_USER_WARNING);
+  if ($first) {
+    $error_msg .= ' (BADLEVEL)';
+  }
+  if ($continue) {
+    return ''.@$error_msg;
+  } else {
+    $error_msg .= " \r\nAbove error reporting";
+    return trigger_error($error_msg, E_USER_WARNING);
+  }
+}
+
+function dbiutils_tracer($lead, $xlevel) {
+//  return (' /* ' .  . ' */ ');
+  return '/* DBI:'
+.    str_replace('*', '_ASTERISK_',
+  dbiutils_stack_trace($lead, 1+@$xlevel, true, 10+@$xlevel))
+//  ))
+  . ' */'
+  . "\r\n    ";
+//  $throwaway = dbiutils_stack_trace('', 2+@$xlevel, true);
 }
 
 function dbiutils_assert_connection($stack_trace_level = 0) {
@@ -122,7 +146,7 @@ class Q {
       $sample = strtolower(trim(substr($queryString, 1, 7)));
       $this->moreResults = array();
       $this->moreErrors = array();
-      $this->result = mysqli_query($dbutils_link, $queryString);
+      $this->result = mysqli_query($dbutils_link, dbiutils_tracer('Q', 1) . $queryString);
       $this->error = mysqli_error($dbutils_link);
       if ($sample == 'insert') {
         $this->insert_id = mysqli_insert_id($dbutils_link);
@@ -378,7 +402,7 @@ function updateorinsert($table = '', $keyvalues = array(), $values = array(), $i
         return false;
       }
       $sql = 'UPDATE `' . $table . '` SET ' . $valuestoset . ' WHERE id = ' . $i;
-      mysqli_query($dbutils_link, $sql);
+      mysqli_query($dbutils_link, dbiutils_tracer('Update/Insert', 0) . $sql);
       $errortext = mysqli_error($dbutils_link);
       if ($errortext > '') {
         if ($dbutils_show_errors) {
@@ -428,7 +452,7 @@ function updateorinsert($table = '', $keyvalues = array(), $values = array(), $i
       $first = false;
     }
     $sql .= ')';
-    mysqli_query($dbutils_link, $sql);
+    mysqli_query($dbutils_link, dbiutils_tracer('Update/InsertB', 0) . $sql);
     $error = mysqli_error($dbutils_link);
     if ($error > '') {
       if ($dbutils_show_errors) {
@@ -500,7 +524,7 @@ function update($table = '', $keyvalues = array(), $values = array(), $clauses =
   if ($clauses > '') {
     $sql .= ' ' . $clauses;
   }
-  mysqli_query($dbutils_link, $sql);
+  mysqli_query($dbutils_link, dbiutils_tracer('Update', 0) . $sql);
   $error = mysqli_error($dbutils_link);
   if ($error > '') {
     if ($dbutils_show_errors) {
@@ -568,7 +592,7 @@ function insert($table = '', $values = array(), $stack_trace_level = 0) {
     $first = false;
   }
   $sql .= ')';
-  @mysqli_query($dbutils_link, $sql);
+  @mysqli_query($dbutils_link, dbiutils_tracer('Insert', 0) . $sql);
   $error = @mysqli_error($dbutils_link);
   if ($error > '') {
     if ($dbutils_show_errors) {
@@ -612,7 +636,7 @@ function deleteFrom($table, $keyvalues = array(), $limit = 0, $stack_trace_level
   if ($limit > 0) {
     $sql .= ' LIMIT ' . $limit;
   }
-  mysqli_query($dbutils_link, $sql);
+  mysqli_query($dbutils_link, dbiutils_tracer('Delete', 0) . $sql);
   $error = mysqli_error($dbutils_link);
   if ($error > '') {
     if ($dbutils_show_errors) {
@@ -723,7 +747,7 @@ function txBegin() {
   global $dbutils_tx_failure_exception;
   assertDataNonRO('txBegin');
   if (0+@$dbutils_txcount == 0) {
-    if (!mysqli_query($dbutils_link, 'START TRANSACTION')) {
+    if (!mysqli_query($dbutils_link, dbiutils_tracer('txBegin', 1) . 'START TRANSACTION')) {
       if ($dbutils_tx_failure_exception) {
         throw new Exception('MySQL failed to start transaction: ' . @mysqli_error($dbutils_link));
       } else {
@@ -742,7 +766,7 @@ function txCommit() {
   assertDataNonRO('txCommit');
   $dbutils_txcount--;
   if (0+@$dbutils_txcount == 0) {
-    $r = mysqli_query($dbutils_link, 'COMMIT');
+    $r = mysqli_query($dbutils_link, dbiutils_tracer('txCommit', 1) . 'COMMIT');
     if ($r) {
       return true;
     } else {
@@ -765,7 +789,7 @@ function txCancel() {
   assertDataNonRO('txCancel');
   $dbutils_txcount--;
   if (0+@$dbutils_txcount <= 0) {
-    if (!mysqli_query($dbutils_link, 'ROLLBACK')) {
+    if (!mysqli_query($dbutils_link, dbiutils_tracer('txCancel', 1) . 'ROLLBACK')) {
       if ($dbutils_tx_failure_exception) {
         throw new Exception('MySQL failed to rollback transaction: ' . @mysqli_error($dbutils_link));
       } else {
