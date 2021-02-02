@@ -1,6 +1,6 @@
 <?php
 
-$x = 2;
+$x = 3;
 
 echo 'hello' . 0+@$x;
 
