@@ -86,7 +86,7 @@ function hexDigitToDec($d) {
   $d = strtolower($d);
   $dec = -1;
   if (($d >= '0') && ($d <= '9')) {
-    $dec = 0+@$d;
+    $dec = (int)@$d;
   } else {
     if ($d == 'a') { $dec = 10; }
     if ($d == 'b') { $dec = 11; }
@@ -179,7 +179,7 @@ function tzOffset($tz = '', $ignoredst = false) {
     date_default_timezone_set($tz);
   }
   $tzoff = floor(date('Z')/60);
-  if (0+@date('I') == 1) {
+  if ((int)@date('I') == 1) {
     if ($ignoredst) {
       $tzoff -= 60; // make up for DST
     }
@@ -231,7 +231,7 @@ function boolToInt($bool) {
 }
 
 function intToBool($int) {
-  return (0+@$int != 0);
+  return ((int)@$int != 0);
 }
 
 function size_readable($size, $max = null, $system = 'si', $retstring = '%01.2f %s') {

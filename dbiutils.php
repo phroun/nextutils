@@ -53,11 +53,11 @@ function dbiutils_tracer($lead, $xlevel) {
 //  return (' /* ' .  . ' */ ');
   return '/* DBI:'
 .    str_replace('*', '_ASTERISK_',
-  dbiutils_stack_trace($lead, 1+@$xlevel, true, 10+@$xlevel))
+  dbiutils_stack_trace($lead, 1+(int)@$xlevel, true, 10+(int)@$xlevel))
 //  ))
   . ' */'
   . "\r\n    ";
-//  $throwaway = dbiutils_stack_trace('', 2+@$xlevel, true);
+//  $throwaway = dbiutils_stack_trace('', 2+(int)@$xlevel, true);
 }
 
 function dbiutils_assert_connection($stack_trace_level = 0) {
@@ -105,7 +105,7 @@ class Q {
       if (!$dbutils_show_errors) {
         throw new Exception('No link when trying: ' . $queryString); // Exception is to emulate previous die() behavior for compatibility
       } else {
-        dbiutils_stack_trace('No link when trying: ' . $queryString, 0+@$stack_trace_level);
+        dbiutils_stack_trace('No link when trying: ' . $queryString, (int)@$stack_trace_level);
         // Letting this continue for compatibility
       }
     }
@@ -119,11 +119,11 @@ class Q {
             assertDataNonRO('sq:' . $val);
           }
         } else {
-          dbiutils_stack_trace('No SQL statement given in array (item #' . $qc . ')', 0+@$stack_trace_level);
+          dbiutils_stack_trace('No SQL statement given in array (item #' . $qc . ')', (int)@$stack_trace_level);
         }
       }
       if ($qc == 0) {
-        dbiutils_stack_trace('No SQL statement given in array', 0+@$stack_trace_level);
+        dbiutils_stack_trace('No SQL statement given in array', (int)@$stack_trace_level);
       }
 
       $this->moreResults = array();
@@ -140,7 +140,7 @@ class Q {
       $combinedQueryString = ''.@$queryString;
 
       if (''.@$queryString == '') {
-        dbiutils_stack_trace('No SQL statement given', 0+@$stack_trace_level);
+        dbiutils_stack_trace('No SQL statement given', (int)@$stack_trace_level);
       }    
     
       $sample = strtolower(trim(substr($queryString, 1, 7)));
@@ -307,7 +307,7 @@ function arraytosafe($values, $useand = false) {
   $first = true;
   $sql = '';
   foreach ($values as $name => $val) {
-    $literal = @(''.(0+@$name) === ''.@$name);
+    $literal = @(''.((int)@$name) === ''.@$name);
 
 //    if (!$literal) {
       if (!$first) {
@@ -335,7 +335,7 @@ function arraytosafe($values, $useand = false) {
           $sql .= ''.@$val[0];
         }
       } else {
-        $sql .= 0+@$val;
+        $sql .= (int)@$val;
       }
     }
 
@@ -382,7 +382,7 @@ function updateorinsert($table = '', $keyvalues = array(), $values = array(), $i
 
   $updateorinsert_inserted = false;
   txBegin();
-  if ( (!isset($keyvalues['id'])) || (0+@$keyvalues['id'] != 0) ) {
+  if ( (!isset($keyvalues['id'])) || ((int)@$keyvalues['id'] != 0) ) {
     // if the key value is based on an ID that is nonzero, or the key value is based on something other than ID:
     
     $whereclause = arraytosafe($keyvalues, true);
@@ -393,7 +393,7 @@ function updateorinsert($table = '', $keyvalues = array(), $values = array(), $i
     }
     $sql = 'SELECT * FROM `' . $table . '` WHERE ' . $whereclause;
     if ($f = sqf($sql)) {
-      $i = 0+@$f['id'];
+      $i = (int)@$f['id'];
       $r = true;
       $valuestoset = arraytosafe($allvalues);
       if ($valuestoset == '') {
@@ -447,7 +447,7 @@ function updateorinsert($table = '', $keyvalues = array(), $values = array(), $i
           $sql .= ''.@$val[0]; // raw expression
         }
       } else {
-        $sql .= 0+@$val;
+        $sql .= (int)@$val;
       }
       $first = false;
     }
@@ -519,7 +519,7 @@ function update($table = '', $keyvalues = array(), $values = array(), $clauses =
   . '` SET ' . $valuestoset
   . ' WHERE ' . arraytosafe($keyvalues, true);
   if (is_array($clauses)) {
-    $clauses = ''.@qsafe($clauses, 1+@$stack_trace_level);
+    $clauses = ''.@qsafe($clauses, 1+(int)@$stack_trace_level);
   }
   if ($clauses > '') {
     $sql .= ' ' . $clauses;
@@ -587,7 +587,7 @@ function insert($table = '', $values = array(), $stack_trace_level = 0) {
         $sql .= $val[0]; // raw expression
       }
     } else {
-      $sql .= 0+@$val;
+      $sql .= (int)@$val;
     }
     $first = false;
   }
@@ -600,7 +600,7 @@ function insert($table = '', $values = array(), $stack_trace_level = 0) {
     }
     return false;
   }
-  return 0+@mysqli_insert_id($dbutils_link);
+  return (int)@mysqli_insert_id($dbutils_link);
 }
 
 function deleteFrom($table, $keyvalues = array(), $limit = 0, $stack_trace_level = 0) {
@@ -609,7 +609,7 @@ function deleteFrom($table, $keyvalues = array(), $limit = 0, $stack_trace_level
 
   assertDataNonRO('deleteFrom:' . $table);
   if (!is_array($keyvalues)) {
-    $keyvalues = array('id' => 0+@$keyvalues);
+    $keyvalues = array('id' => (int)@$keyvalues);
   }
 
   if (''.@$table == '') {
@@ -669,10 +669,10 @@ function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '', $st
     }
   }
   if (!is_array($keyvalues)) {
-    $keyvalues = array('id' => 0+@$keyvalues);
+    $keyvalues = array('id' => (int)@$keyvalues);
   }
   if (is_array($clauses)) {
-    $clauses = qsafe($clauses, 1+@$stack_trace_level);
+    $clauses = qsafe($clauses, 1+(int)@$stack_trace_level);
   }
   if (count($keyvalues) > 0) {
     $qs = 'SELECT ' . $fields . ' FROM `' . $table . '` '
@@ -701,14 +701,14 @@ function select($table, $fields, $keyvalues = array(), $clauses = '', $stack_tra
     }
   }
   
-  $q = getSelectFrom($table, $fields, $keyvalues, $clauses, 1+@$stack_trace_level);
-  $f = sq($q, true, 1+@$stack_trace_level);
+  $q = getSelectFrom($table, $fields, $keyvalues, $clauses, 1+(int)@$stack_trace_level);
+  $f = sq($q, true, 1+(int)@$stack_trace_level);
   $dbutils_selstack[] = array($q, $f, false);
   return $f;
 }
 
 function selecta($table, $fields, $keyvalues = array(), $clauses = '', $stack_trace_level = 0) {
-  $f = select($table, $fields, $keyvalues, $clauses, 1+@$stack_trace_level);
+  $f = select($table, $fields, $keyvalues, $clauses, 1+(int)@$stack_trace_level);
   selectClose();
   return $f;
 }
@@ -723,7 +723,7 @@ function selectRow($stack_trace_level = 0) {
       unset($GLOBALS['dbutils_selstack'][$qq][1]); // remove preloaded item
       return $f;
     } else {
-      $f = sq($GLOBALS['dbutils_selstack'][$qq][0], true, 1+@$stack_trace_level);
+      $f = sq($GLOBALS['dbutils_selstack'][$qq][0], true, 1+(int)@$stack_trace_level);
       return $f;
     }
   } else {
@@ -746,7 +746,7 @@ function txBegin() {
   global $dbutils_link;
   global $dbutils_tx_failure_exception;
   assertDataNonRO('txBegin');
-  if (0+@$dbutils_txcount == 0) {
+  if ((int)@$dbutils_txcount == 0) {
     if (!mysqli_query($dbutils_link, dbiutils_tracer('txBegin', 1) . 'START TRANSACTION')) {
       if ($dbutils_tx_failure_exception) {
         throw new Exception('MySQL failed to start transaction: ' . @mysqli_error($dbutils_link));
@@ -765,7 +765,7 @@ function txCommit() {
   global $dbutils_tx_failure_exception;
   assertDataNonRO('txCommit');
   $dbutils_txcount--;
-  if (0+@$dbutils_txcount == 0) {
+  if ((int)@$dbutils_txcount == 0) {
     $r = mysqli_query($dbutils_link, dbiutils_tracer('txCommit', 1) . 'COMMIT');
     if ($r) {
       return true;
@@ -788,7 +788,7 @@ function txCancel() {
   global $dbutils_tx_failure_exception;
   assertDataNonRO('txCancel');
   $dbutils_txcount--;
-  if (0+@$dbutils_txcount <= 0) {
+  if ((int)@$dbutils_txcount <= 0) {
     if (!mysqli_query($dbutils_link, dbiutils_tracer('txCancel', 1) . 'ROLLBACK')) {
       if ($dbutils_tx_failure_exception) {
         throw new Exception('MySQL failed to rollback transaction: ' . @mysqli_error($dbutils_link));
@@ -923,7 +923,7 @@ function qsafe($qs, $stack_trace_level = 0) {
         if ($nexttype == 1) {
           $s .= '"' . mes($v) . '"';
         } elseif ($nexttype == 2) {
-          $s .= (0+@$v);
+          $s .= ((int)@$v);
         } else {
           dbiutils_stack_trace('Malformed query', $stack_trace_level);
           if ($dbiutils_die_if_malformed) {

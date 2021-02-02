@@ -1,8 +1,8 @@
 <?php
 
-$x = 3;
+$x = 2;
 
-echo 'hello' . 0+@$x;
+echo 'hello' . (int)@$x;
 
 echo "includes\r\n";
 include('baseutils.php');
