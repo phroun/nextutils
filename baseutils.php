@@ -143,7 +143,7 @@ function checked($comp) {
 function dtLocal($dtval) {
   if ($dtval == '0000-00-00 00:00:00') { // zero
     return $dtval;
-  } elseif (mb_strlen($dtval) == 10) { // date only
+  } elseif (mb_strlen(''.(string)@$dtval) == 10) { // date only
     return $dtval;
   } elseif ($dtval == '') { // null
     return $dtval;
@@ -159,7 +159,7 @@ function dtLocal($dtval) {
 function dtUTC($dtval) {
   if ($dtval == '0000-00-00 00:00:00') { // zero
     return $dtval;
-  } elseif (mb_strlen($dtval) == 10) { // date only
+  } elseif (mb_strlen(''.(string)@$dtval) == 10) { // date only
     return $dtval;
   } elseif ($dtval == '') { // null
     return $dtval;
