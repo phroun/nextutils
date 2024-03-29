@@ -86,7 +86,7 @@ function hexDigitToDec($d) {
   $d = strtolower($d);
   $dec = -1;
   if (($d >= '0') && ($d <= '9')) {
-    $dec = 0+@$d;
+    $dec = (int)@$d;
   } else {
     if ($d == 'a') { $dec = 10; }
     if ($d == 'b') { $dec = 11; }
@@ -100,7 +100,7 @@ function hexDigitToDec($d) {
 
 function luminanceOfHex($hex) {
 
-  if (strlen_mb($hex) == 6) { // only read major digits if 6-digit value
+  if (mb_strlen($hex) == 6) { // only read major digits if 6-digit value
 
     $r = hexDigitToDec(substr($hex, 0, 1));
     $g = hexDigitToDec(substr($hex, 2, 1));
@@ -109,7 +109,7 @@ function luminanceOfHex($hex) {
       $r = 15; $g = 15; $b = 15;
     }
 
-  } elseif (strlen_mb($hex) == 3) {
+  } elseif (mb_strlen($hex) == 3) {
 
     $r = hexDigitToDec(substr($hex, 0, 1));
     $g = hexDigitToDec(substr($hex, 1, 1));
@@ -143,7 +143,7 @@ function checked($comp) {
 function dtLocal($dtval) {
   if ($dtval == '0000-00-00 00:00:00') { // zero
     return $dtval;
-  } elseif (strlen_mb($dtval) == 10) { // date only
+  } elseif (mb_strlen(''.(string)@$dtval) == 10) { // date only
     return $dtval;
   } elseif ($dtval == '') { // null
     return $dtval;
@@ -159,7 +159,7 @@ function dtLocal($dtval) {
 function dtUTC($dtval) {
   if ($dtval == '0000-00-00 00:00:00') { // zero
     return $dtval;
-  } elseif (strlen_mb($dtval) == 10) { // date only
+  } elseif (mb_strlen(''.(string)@$dtval) == 10) { // date only
     return $dtval;
   } elseif ($dtval == '') { // null
     return $dtval;
@@ -179,7 +179,7 @@ function tzOffset($tz = '', $ignoredst = false) {
     date_default_timezone_set($tz);
   }
   $tzoff = floor(date('Z')/60);
-  if (0+@date('I') == 1) {
+  if ((int)@date('I') == 1) {
     if ($ignoredst) {
       $tzoff -= 60; // make up for DST
     }
@@ -231,7 +231,7 @@ function boolToInt($bool) {
 }
 
 function intToBool($int) {
-  return (0+@$int != 0);
+  return ((int)@$int != 0);
 }
 
 function size_readable($size, $max = null, $system = 'si', $retstring = '%01.2f %s') {

@@ -181,7 +181,7 @@ function arraytosafe($values, $useand = false) {
   $first = true;
   $sql = '';
   foreach ($values as $name => $val) {
-    $literal = (''.(0+@$name) === ''.@$name);
+    $literal = (''.((int)@$name) === ''.@$name);
 
 //    if (!$literal) {
       if (!$first) {
@@ -202,7 +202,7 @@ function arraytosafe($values, $useand = false) {
       } elseif (gettype($val) == 'array') {
         $sql .= $val[0];
       } else {
-        $sql .= 0+@$val;
+        $sql .= (int)@$val;
       }
     }
 
@@ -230,12 +230,12 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
 
   $updateorinsert_inserted = false;
   txBegin();
-  if ( (!isset($keyvalues['id'])) || (0+@$keyvalues['id'] != 0) ) {
+  if ( (!isset($keyvalues['id'])) || ((int)@$keyvalues['id'] != 0) ) {
     // if the key value is based on an ID that is nonzero, or the key value is based on something other than ID:
     
     $sql = 'SELECT * FROM `' . $table . '` WHERE ' . arraytosafe($keyvalues, true);
     if ($f = sqf($sql)) {
-      $i = 0+@$f['id'];
+      $i = (int)@$f['id'];
       $r = true;
       $sql = 'UPDATE `' . $table . '` SET ' . arraytosafe($allvalues) . ' WHERE id = ' . $i;
       mysql_query($sql, $dbutils_link);
@@ -263,7 +263,7 @@ function updateorinsert($table, $keyvalues, $values = array(), $insertonlyvalues
       } elseif (gettype($val) == 'array') {
         $sql .= $val[0]; // raw expression
       } else {
-        $sql .= 0+@$val;
+        $sql .= (int)@$val;
       }
       $first = false;
     }
@@ -333,7 +333,7 @@ function insert($table, $values) {
     } elseif (gettype($val) == 'array') {
       $sql .= $val[0]; // raw expression
     } else {
-      $sql .= 0+@$val;
+      $sql .= (int)@$val;
     }
     $first = false;
   }
@@ -355,7 +355,7 @@ function deleteFrom($table, $keyvalues = array(), $limit = 0) {
   global $dbutils_link;
   assertDataNonRO('deleteFrom:' . $table);
   if (!is_array($keyvalues)) {
-    $keyvalues = array('id' => 0+@$keyvalues);
+    $keyvalues = array('id' => (int)@$keyvalues);
   }
   if (count($keyvalues) > 0) {
     $sql = 'DELETE FROM `' . $table . '` '
@@ -397,7 +397,7 @@ function getSelectFrom($table, $fields, $keyvalues = array(), $clauses = '') {
     }
   }
   if (!is_array($keyvalues)) {
-    $keyvalues = array('id' => 0+@$keyvalues);
+    $keyvalues = array('id' => (int)@$keyvalues);
   }
   if (is_array($clauses)) {
     $clauses = qsafe($clauses);
@@ -475,7 +475,7 @@ function txBegin() {
   global $dbutils_txcount;
   global $dbutils_link;
   assertDataNonRO('txBegin');
-  if (0+@$dbutils_txcount == 0) {
+  if ((int)@$dbutils_txcount == 0) {
     mysql_query('START TRANSACTION', $dbutils_link);
   }
   $dbutils_txcount++;
@@ -486,7 +486,7 @@ function txCommit() {
   global $dbutils_link;
   assertDataNonRO('txCommit');
   $dbutils_txcount--;
-  if (0+@$dbutils_txcount == 0) {
+  if ((int)@$dbutils_txcount == 0) {
     mysql_query('COMMIT', $dbutils_link);
   }
 }
@@ -496,7 +496,7 @@ function txCancel() {
   global $dbutils_link;
   assertDataNonRO('txCancel');
   $dbutils_txcount--;
-  if (0+@$dbutils_txcount <= 0) {
+  if ((int)@$dbutils_txcount <= 0) {
     mysql_query('ROLLBACK', $dbutils_link);
   } else {
     die(); // something pretty bad happened
@@ -613,7 +613,7 @@ function qsafe($qs) {
         if ($nexttype == 1) {
           $s .= '"' . mes($v) . '"';
         } elseif ($nexttype == 2) {
-          $s .= (0+@$v);
+          $s .= ((int)@$v);
         } else {
           echo 'Malformed query.';
           die();
