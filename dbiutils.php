@@ -887,7 +887,6 @@ function dbutils_connect($host, $user, $pass, $base = '', $graceful = false, $ti
     $error = mysqli_connect_error();
     $error = 'DB connection failure: ' . $error;
   } else {
-    $error = $errmsg;
     if (''.@$error == '') {
       $error = ''.@mysqli_error($dbconn);
     }
