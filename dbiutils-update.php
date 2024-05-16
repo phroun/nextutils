@@ -9,8 +9,8 @@ function updateDatabase($action = 'check', $newSchema = false) {
 
   function applyChange($apply, $change) {
     if ($apply) {
+      sqx($change); // can't return first
       return 'Applying : ' . $change . "\r\n";
-      sqx($change);
     } else {
       return $change . ";\r\n";
     }
