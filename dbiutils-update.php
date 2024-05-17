@@ -123,7 +123,7 @@ function updateDatabase($action = 'check', $newSchema = false) {
               $newSchema = $parts[2];
               $foundVer = true;
             } elseif ($parts[1] == 'rename') {
-              if (($parts[3] == '') && ($parts[4] == '')) {
+              if ($parts[3] == '') {
                 $renameTables[$parts[2]] = $parts[4];
               } else {
                 $renameContent[$parts[2] . ':' . $parts[3]] = $parts[4];
