@@ -22,8 +22,9 @@ function dbiutils_stack_trace($error_msg, $stack_trace_level, $continue = false,
     $maxlevel = count($stack);
   }
   for ($i = $stack_trace_level + 1; $i < $maxlevel; $i++) {
-    $frame = @$stack[$i];
-    if (!$frame) {
+    if (isset($stack[$i])) {
+      $frame = $stack[$i];
+    } else {
       break;
     }
     if ($first) {
